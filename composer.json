@@ -5,7 +5,8 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Formotron\\": "src/"
+            "Formotron\\": "src/",
+            "Formotron\\Test\\": "tests/"
         }
     },
     "authors": [
@@ -14,5 +15,23 @@
             "email": "holger.schletz@web.de"
         }
     ],
-    "require": {}
+    "require": {
+        "php": "^8.1 || ^8.2 || ^8.3",
+        "psr/container": "^1.0 || ^2.0"
+    },
+    "require-dev": {
+        "bamarni/composer-bin-plugin": "^1.8",
+        "phpunit/phpunit": "^10"
+    },
+    "scripts": {
+        "phpstan": "phpstan -v",
+        "psalm": "psalm",
+        "test": "phpunit"
+    },
+    "config": {
+        "allow-plugins": {
+            "bamarni/composer-bin-plugin": true
+        },
+        "sort-packages": true
+    }
 }
