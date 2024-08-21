@@ -4,6 +4,7 @@ namespace Formotron;
 
 use BackedEnum;
 use Formotron\Attribute\Assert;
+use Formotron\Attribute\Key;
 use Formotron\Attribute\PreProcess;
 use LogicException;
 use Psr\Container\ContainerInterface;
@@ -93,11 +94,13 @@ class FormProcessor
         $instance = $class->newInstanceWithoutConstructor();
         $processedKeys = [];
         foreach ($class->getProperties() as $property) {
+            $keyAttribute = $property->getAttributes(Key::class)[0] ?? null;
+            $key = $keyAttribute ? $keyAttribute->newInstance()->key : $property->getName();
             /** @psalm-suppress MixedAssignment */
-            $value = $this->getValue($property, $input);
+            $value = $this->getValue($property, $key, $input);
             $this->processAssertions($property, $value);
             $property->setValue($instance, $value);
-            $processedKeys[] = $property->getName();
+            $processedKeys[] = $key;
         }
 
         $extraKeys = array_diff(array_keys($input), $processedKeys);
@@ -111,33 +114,31 @@ class FormProcessor
     /**
      * @param mixed[] $input
      */
-    private function getValue(ReflectionProperty $property, array $input): mixed
+    private function getValue(ReflectionProperty $property, string $key, array $input): mixed
     {
-        $name = $property->getName();
-        if (array_key_exists($name, $input)) {
+        if (array_key_exists($key, $input)) {
             /** @psalm-suppress MixedAssignment */
-            $value = $this->processValue($property, $input[$name]);
+            $value = $this->processValue($property, $key, $input[$key]);
         } elseif ($property->hasType()) {
             if ($property->hasDefaultValue()) {
                 /** @psalm-suppress MixedAssignment */
                 $value = $property->getDefaultValue();
             } else {
-                throw new AssertionFailedException('Missing key: ' . $name);
+                throw new AssertionFailedException('Missing key: ' . $key);
             }
         } else {
             /** @psalm-suppress MixedAssignment */
             $value = $property->getDefaultValue();
             if ($value === null) {
-                throw new AssertionFailedException('Missing key: ' . $name);
+                throw new AssertionFailedException('Missing key: ' . $key);
             }
         }
 
         return $value;
     }
 
-    private function processValue(ReflectionProperty $property, mixed $value): mixed
+    private function processValue(ReflectionProperty $property, string $key, mixed $value): mixed
     {
-        $name = $property->getName();
         $type = $property->getType();
         if ($type instanceof ReflectionNamedType) {
             $typeName = $type->getName();
@@ -152,7 +153,7 @@ class FormProcessor
                     if (!is_array($value)) {
                         throw new AssertionFailedException(sprintf(
                             'Value for $%s has invalid type, expected array, got %s',
-                            $name,
+                            $key,
                             gettype($value),
                         ));
                     }
@@ -165,11 +166,11 @@ class FormProcessor
                         if (!is_string($value) && !is_int($value)) {
                             throw new AssertionFailedException(sprintf(
                                 'Value for $%s has invalid type, expected string|int, got %s',
-                                $name,
+                                $key,
                                 gettype($value),
                             ));
                         }
-                        $value = $this->parseToEnum($typeName, $name, $value);
+                        $value = $this->parseToEnum($typeName, $key, $value);
                     } else {
                         // "object", "self", "parent", class, interface
                         throw new LogicException('Cannot handle properties of type ' . $typeName);
@@ -185,7 +186,7 @@ class FormProcessor
     /**
      * @param class-string<UnitEnum> $typeName
      */
-    private function parseToEnum(string $typeName, string $fieldName, string | int $value): UnitEnum
+    private function parseToEnum(string $typeName, string $key, string | int $value): UnitEnum
     {
         $enum = new ReflectionEnum($typeName);
         $backingType = $enum->getBackingType();
@@ -195,28 +196,28 @@ class FormProcessor
                 if (ctype_digit($value)) {
                     $value = (int) $value;
                 } else {
-                    throw new AssertionFailedException("Invalid value for \$$fieldName: $value");
+                    throw new AssertionFailedException("Invalid value for \$$key: $value");
                 }
             }
             try {
                 /** @var class-string<BackedEnum> $typeName */
                 return $typeName::from($value);
             } catch (ValueError) {
-                throw new AssertionFailedException("Invalid value for \$$fieldName: $value");
+                throw new AssertionFailedException("Invalid value for \$$key: $value");
             }
         } else {
             // Pure enum, $value is interpreted as name
             if (!is_string($value)) {
                 throw new AssertionFailedException(sprintf(
                     'Value for $%s has invalid type, expected string, got %s',
-                    $fieldName,
+                    $key,
                     gettype($value),
                 ));
             }
             if ($enum->hasCase($value)) {
                 return $enum->getCase($value)->getValue();
             } else {
-                throw new AssertionFailedException("Invalid value for \$$fieldName: $value");
+                throw new AssertionFailedException("Invalid value for \$$key: $value");
             }
         }
     }
