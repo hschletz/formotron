@@ -464,7 +464,7 @@ class FormProcessorTest extends TestCase
         $this->assertObjectNotHasProperty('key2', $result);
     }
 
-    public function testPreProcessAttributWithInvalidService()
+    public function testPreProcessAttributeWithInvalidService()
     {
         $preProcessor = new stdClass();
         $services = [['PreProcessor', $preProcessor]];
