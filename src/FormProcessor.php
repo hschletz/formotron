@@ -174,8 +174,17 @@ class FormProcessor
                             ));
                         }
                         $value = $this->parseToEnum($typeName, $key, $value);
+                    } elseif (class_exists($typeName)) {
+                        if (!$value instanceof $typeName) {
+                            throw new AssertionFailedException(sprintf(
+                                'Value for $%s has invalid type, expected %s, got %s',
+                                $key,
+                                $typeName,
+                                gettype($value),
+                            ));
+                        }
                     } else {
-                        // "object", "self", "parent", class, interface
+                        // "object", "self", "parent", interface
                         throw new LogicException('Cannot handle properties of type ' . $typeName);
                     }
             }

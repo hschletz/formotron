@@ -333,6 +333,28 @@ class FormProcessorTest extends TestCase
         $this->process(['foo' => '42a'], $dataObject);
     }
 
+    public function testClassPropertyValid()
+    {
+        $dataObject = new class
+        {
+            public stdClass $foo;
+        };
+        $value = new stdClass();
+        $result = $this->process(['foo' => $value], $dataObject);
+        $this->assertSame($value, $result->foo);
+    }
+
+    public function testClassPropertyInvalidType()
+    {
+        $dataObject = new class
+        {
+            public stdClass $foo;
+        };
+        $this->expectException(AssertionFailedException::class);
+        $this->expectExceptionMessage('Value for $foo has invalid type, expected stdClass, got string');
+        $this->process(['foo' => 'bar'], $dataObject);
+    }
+
     public function testUnionProperty()
     {
         $dataObject = new class
