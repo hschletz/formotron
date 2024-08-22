@@ -6,6 +6,7 @@ use BackedEnum;
 use Formotron\Attribute\Assert;
 use Formotron\Attribute\Key;
 use Formotron\Attribute\PreProcess;
+use Formotron\Attribute\Transform;
 use LogicException;
 use Psr\Container\ContainerInterface;
 use ReflectionClass;
@@ -139,6 +140,8 @@ class FormProcessor
 
     private function processValue(ReflectionProperty $property, string $key, mixed $value): mixed
     {
+        /** @var mixed */
+        $value = $this->transformValue($property, $value);
         $type = $property->getType();
         if ($type instanceof ReflectionNamedType) {
             $typeName = $type->getName();
@@ -178,6 +181,22 @@ class FormProcessor
             }
         } elseif ($type !== null) {
             throw new LogicException('Union/intersection types are not supported');
+        }
+
+        return $value;
+    }
+
+    private function transformValue(ReflectionProperty $property, mixed $value): mixed
+    {
+        $transformAttribute = $property->getAttributes(Transform::class)[0] ?? null;
+        if ($transformAttribute) {
+            $service = $transformAttribute->newInstance()->transformerService;
+            $transformer = $this->container->get($service);
+            if (!$transformer instanceof Transformer) {
+                throw new LogicException("Service {$service} does not implement " . Transformer::class);
+            }
+            /** @var mixed */
+            $value = $transformer->transform($value);
         }
 
         return $value;
