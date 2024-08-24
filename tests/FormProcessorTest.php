@@ -19,6 +19,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use ReflectionProperty;
 use stdClass;
+use Stringable;
 use Traversable;
 
 enum PureTestEnum
@@ -126,15 +127,67 @@ class FormProcessorTest extends TestCase
         $this->assertEquals($value, $result->foo);
     }
 
-    public function testStringProperty()
+    public static function validStringProvider()
+    {
+        return [
+            ['bar', 'bar'],
+            [42, '42'],
+            [3.14, '3.14'],
+            [
+                new class implements Stringable
+                {
+                    public function __toString(): string
+                    {
+                        return 'bar';
+                    }
+                },
+                'bar',
+            ],
+            [
+                new class
+                {
+                    public function __toString(): string
+                    {
+                        return 'bar';
+                    }
+                },
+                'bar',
+            ],
+        ];
+    }
+
+    #[DataProvider('validStringProvider')]
+    public function testStringPropertyValid(mixed $value, string $expectedValue)
     {
         $dataObject = new class
         {
             public string $foo;
         };
-        $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('Handling of string properties is not implemented yet');
-        $this->process(['foo' => 'bar'], $dataObject);
+        $result = $this->process(['foo' => $value], $dataObject);
+        $this->assertEquals($expectedValue, $result->foo);
+    }
+
+    public static function invalidStringProvider()
+    {
+        return [
+            [null],
+            [true],
+            [false],
+            [[]],
+            [new stdClass()],
+        ];
+    }
+
+    #[DataProvider('invalidStringProvider')]
+    public function testStringPropertyInvalid(mixed $value)
+    {
+        $dataObject = new class
+        {
+            public string $foo;
+        };
+        $this->expectException(AssertionFailedException::class);
+        $this->expectExceptionMessage('Value for $foo has invalid type, expected string|int|float|Stringable, got ');
+        $this->process(['foo' => $value], $dataObject);
     }
 
     public function testBoolProperty()

@@ -13,6 +13,7 @@ use ReflectionClass;
 use ReflectionEnum;
 use ReflectionNamedType;
 use ReflectionProperty;
+use Stringable;
 use UnitEnum;
 use ValueError;
 
@@ -147,6 +148,16 @@ class FormProcessor
             $typeName = $type->getName();
             switch ($typeName) {
                 case 'string':
+                    if (is_string($value) || is_int($value) || is_float($value) || $value instanceof Stringable) {
+                        $value = (string) $value;
+                    } else {
+                        throw new AssertionFailedException(sprintf(
+                            'Value for $%s has invalid type, expected string|int|float|Stringable, got %s',
+                            $key,
+                            gettype($value),
+                        ));
+                    }
+                    break;
                 case 'bool':
                 case 'int':
                 case 'float':
