@@ -8,7 +8,7 @@ use Formotron\Attribute\Assert;
 use Formotron\Attribute\Key;
 use Formotron\Attribute\PreProcess;
 use Formotron\Attribute\Transform;
-use Formotron\FormProcessor;
+use Formotron\DataProcessor;
 use Formotron\PreProcessor;
 use Formotron\Transformer;
 use Formotron\Validator;
@@ -37,7 +37,7 @@ enum IntBackedTestEnum: int
     case Bar = 42;
 }
 
-class FormProcessorTest extends TestCase
+class DataProcessorTest extends TestCase
 {
     /**
      * @template T of object
@@ -51,8 +51,8 @@ class FormProcessorTest extends TestCase
         $container = $this->createStub(ContainerInterface::class);
         $container->method('get')->willReturnMap($services);
 
-        $formProcessor = new FormProcessor($container);
-        $result = $formProcessor->process($input, get_class($dataObject));
+        $dataProcessor = new DataProcessor($container);
+        $result = $dataProcessor->process($input, get_class($dataObject));
 
         return $result;
     }

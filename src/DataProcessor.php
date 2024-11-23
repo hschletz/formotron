@@ -30,9 +30,9 @@ use ValueError;
  *         public $bar;
  *     }
  *
- * Pass input data and the class name to the FormProcessor instance:
+ * Pass input data and the class name to the DataProcessor instance:
  *
- *     $formData = $formProcessor->process(
+ *     $formData = $dataProcessor->process(
  *         [
  *             'foo' => 'baz',
  *             'bar' => 'foobar',
@@ -43,7 +43,7 @@ use ValueError;
  * Processing occurs according to property's data types and extra rules defined
  * by attributes.
  */
-class FormProcessor
+class DataProcessor
 {
     public function __construct(private ContainerInterface $container)
     {
