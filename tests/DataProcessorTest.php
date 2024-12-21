@@ -323,13 +323,30 @@ class DataProcessorTest extends TestCase
         $this->process(['foo' => 42], $dataObject);
     }
 
-    public function testStringBackedEnumPropertyValid()
+    public function testStringBackedEnumPropertyValidWithString()
     {
         $dataObject = new class
         {
             public StringBackedTestEnum $foo;
         };
         $result = $this->process(['foo' => 'bar'], $dataObject);
+        $this->assertEquals(StringBackedTestEnum::Bar, $result->foo);
+    }
+
+    public function testStringBackedEnumPropertyValidWithStringable()
+    {
+        $dataObject = new class
+        {
+            public StringBackedTestEnum $foo;
+        };
+        $value = new class
+        {
+            public function __toString()
+            {
+                return 'bar';
+            }
+        };
+        $result = $this->process(['foo' => $value], $dataObject);
         $this->assertEquals(StringBackedTestEnum::Bar, $result->foo);
     }
 
@@ -351,7 +368,7 @@ class DataProcessorTest extends TestCase
             public StringBackedTestEnum $foo;
         };
         $this->expectException(AssertionFailedException::class);
-        $this->expectExceptionMessage('Value for $foo has invalid type, expected string|int, got array');
+        $this->expectExceptionMessage('Value for $foo has invalid type, expected stringable, got array');
         $this->process(['foo' => []], $dataObject);
     }
 
@@ -382,8 +399,19 @@ class DataProcessorTest extends TestCase
             public IntBackedTestEnum $foo;
         };
         $this->expectException(AssertionFailedException::class);
-        $this->expectExceptionMessage('Invalid value for $foo: 42a');
+        $this->expectExceptionMessage('Value for $foo has invalid type, expected int|int-string, got string');
         $this->process(['foo' => '42a'], $dataObject);
+    }
+
+    public function testIntBackedEnumWithInvalidValueType()
+    {
+        $dataObject = new class
+        {
+            public IntBackedTestEnum $foo;
+        };
+        $this->expectException(AssertionFailedException::class);
+        $this->expectExceptionMessage('Value for $foo has invalid type, expected int|int-string, got array');
+        $this->process(['foo' => []], $dataObject);
     }
 
     public function testClassPropertyValid()

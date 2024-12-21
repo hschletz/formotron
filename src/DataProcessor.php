@@ -148,7 +148,8 @@ class DataProcessor
             $typeName = $type->getName();
             switch ($typeName) {
                 case 'string':
-                    if (is_string($value) || is_int($value) || is_float($value) || $value instanceof Stringable) {
+                    if ($this->isStringable($value)) {
+                        // @phpstan-ignore cast.string (condition guarantees safe cast of mixed value)
                         $value = (string) $value;
                     } else {
                         throw new AssertionFailedException(sprintf(
@@ -177,13 +178,6 @@ class DataProcessor
                 default:
                     if (enum_exists($typeName)) {
                         /** @var class-string<UnitEnum> $typeName */
-                        if (!is_string($value) && !is_int($value)) {
-                            throw new AssertionFailedException(sprintf(
-                                'Value for $%s has invalid type, expected string|int, got %s',
-                                $key,
-                                gettype($value),
-                            ));
-                        }
                         $value = $this->parseToEnum($typeName, $key, $value);
                     } elseif (class_exists($typeName)) {
                         if (!$value instanceof $typeName) {
@@ -225,19 +219,30 @@ class DataProcessor
     /**
      * @param class-string<UnitEnum> $typeName
      */
-    private function parseToEnum(string $typeName, string $key, string | int $value): UnitEnum
+    private function parseToEnum(string $typeName, string $key, mixed $value): UnitEnum
     {
         $enum = new ReflectionEnum($typeName);
         $backingType = $enum->getBackingType();
         if ($backingType) {
             // Backed enum, $value is interpreted as backing value
-            if ((string) $backingType == 'int' && is_string($value)) {
-                if (ctype_digit($value)) {
-                    $value = (int) $value;
-                } else {
-                    throw new AssertionFailedException("Invalid value for \$$key: $value");
-                }
-            }
+            // @phpstan-ignore match.unhandled (unmatched value not to be expected)
+            $value = match ((string) $backingType) {
+                'int' => is_int($value) || is_string($value) && ctype_digit($value) ? (int) $value : throw new AssertionFailedException(
+                    sprintf(
+                        'Value for $%s has invalid type, expected int|int-string, got %s',
+                        $key,
+                        gettype($value),
+                    )
+                ),
+                // @phpstan-ignore cast.string (condition guarantees safe cast of mixed value)
+                'string' => $this->isStringable($value) ? (string) $value : throw new AssertionFailedException(
+                    sprintf(
+                        'Value for $%s has invalid type, expected stringable, got %s',
+                        $key,
+                        gettype($value),
+                    )
+                ),
+            };
             try {
                 /** @var class-string<BackedEnum> $typeName */
                 return $typeName::from($value);
@@ -278,5 +283,10 @@ class DataProcessor
                 ));
             }
         }
+    }
+
+    private function isStringable(mixed $value): bool
+    {
+        return is_string($value) || is_int($value) || is_float($value) || $value instanceof Stringable;
     }
 }
