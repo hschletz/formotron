@@ -138,7 +138,7 @@ be transformed first, preferrably with strict rules that match the particular
 use case.
 
 ## array
-Array objects accept only array input values. Types of array values are not
+Array properties accept only array input values. Types of array values are not
 checked.
 
 ## enum
