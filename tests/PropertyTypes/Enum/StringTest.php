@@ -14,6 +14,17 @@ enum StringBackedTestEnum: string
 class StringTest extends TestCase
 {
     use DataProcessorTestTrait;
+
+    public function testValidWithEnum()
+    {
+        $dataObject = new class
+        {
+            public StringBackedTestEnum $foo;
+        };
+        $result = $this->process(['foo' => StringBackedTestEnum::Bar], $dataObject);
+        $this->assertEquals(StringBackedTestEnum::Bar, $result->foo);
+    }
+
     public function testValidWithString()
     {
         $dataObject = new class

@@ -221,6 +221,9 @@ class DataProcessor
      */
     private function parseToEnum(string $typeName, string $key, mixed $value): UnitEnum
     {
+        if ($value instanceof $typeName) {
+            return $value;
+        }
         $enum = new ReflectionEnum($typeName);
         $backingType = $enum->getBackingType();
         if ($backingType) {

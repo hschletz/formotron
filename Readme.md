@@ -132,10 +132,10 @@ Array objects accept only array input values. Types of array values are not
 checked.
 
 ## enum
-Enum properties accept strings that match a defined enum value. This is very
-useful for constraining values to a limited set (for example, radio buttons and
-dropdowns with a static set of values). Valid input values are defined by the
-type of enum:
+Enum properties accept enum instances, as well as strings/integers that match a
+defined enum value. This is very useful for constraining values to a limited set
+(for example, radio buttons and dropdowns with a static set of values). Valid
+input values are defined by the type of enum:
 - Basic enums accept the symbolic name (case sensitive).
 - Backed enums accept the backing value only, but not the name.
 
@@ -154,8 +154,8 @@ enum Backed: string
 
 class DataObject
 {
-    public Basic $basic; // valid values: 'Foo', 'Bar'
-    public Backed $backed; // valid values: 'foo', 'bar'
+    public Basic $basic; // valid values: 'Foo', 'Bar', Basic::Foo, Basic::Bar
+    public Backed $backed; // valid values: 'foo', 'bar', Backed::Foo, Backed::Bar
 }
 ```
 

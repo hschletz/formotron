@@ -15,7 +15,17 @@ class PureTest extends TestCase
 {
     use DataProcessorTestTrait;
 
-    public function testValid()
+    public function testValidEnum()
+    {
+        $dataObject = new class
+        {
+            public PureTestEnum $foo;
+        };
+        $result = $this->process(['foo' => PureTestEnum::Bar], $dataObject);
+        $this->assertEquals(PureTestEnum::Bar, $result->foo);
+    }
+
+    public function testValidString()
     {
         $dataObject = new class
         {

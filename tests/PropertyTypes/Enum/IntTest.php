@@ -15,6 +15,16 @@ class IntTest extends TestCase
 {
     use DataProcessorTestTrait;
 
+    public function testValidEnum()
+    {
+        $dataObject = new class
+        {
+            public IntBackedTestEnum $foo;
+        };
+        $result = $this->process(['foo' => IntBackedTestEnum::Bar], $dataObject);
+        $this->assertEquals(IntBackedTestEnum::Bar, $result->foo);
+    }
+
     public function testValidInt()
     {
         $dataObject = new class
