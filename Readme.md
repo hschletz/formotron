@@ -130,6 +130,13 @@ String properties accept any input value that can be safely converted:
 - int, float (default PHP conversion, not locale-specific)
 - objects with a `__toString()` method
 
+## bool
+Bool properties accept only `true` or `false`. Formotron does not attempt to
+cast other values to `bool` because PHP's casting rules are error prone and may
+not give the desired result. If you have non-boolean input values, they need to
+be transformed first, preferrably with strict rules that match the particular
+use case.
+
 ## array
 Array objects accept only array input values. Types of array values are not
 checked.
@@ -680,7 +687,7 @@ class Exists implements Formotron\Transformer
 class DataObject
 {
     #[Transform(Exists::class)]
-    public $foo = false; // Default to unchecked value to allow missing key
+    public bool $foo = false; // Default to unchecked value to allow missing key
 }
 ```
 

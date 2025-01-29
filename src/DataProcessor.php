@@ -163,6 +163,14 @@ class DataProcessor
                     }
                     break;
                 case 'bool':
+                    if (!is_bool($value)) {
+                        throw new AssertionFailedException(sprintf(
+                            'Value for $%s has invalid type, expected bool, got %s',
+                            $key,
+                            gettype($value),
+                        ));
+                    }
+                    break;
                 case 'int':
                 case 'float':
                 case 'iterable':
