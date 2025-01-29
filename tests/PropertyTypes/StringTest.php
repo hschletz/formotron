@@ -53,6 +53,33 @@ class StringTest extends TestCase
         $this->assertEquals($expectedValue, $result->foo);
     }
 
+    public static function nullableProvider()
+    {
+        return [[''], [null]];
+    }
+
+    #[DataProvider('nullableProvider')]
+    public function testNullable(?string $value)
+    {
+        $dataObject = new class
+        {
+            public ?string $foo;
+        };
+        $result = $this->process(['foo' => $value], $dataObject);
+        $this->assertSame($value, $result->foo);
+    }
+
+    public function testNullableWithInvalidType()
+    {
+        $dataObject = new class
+        {
+            public ?string $foo;
+        };
+        $this->expectException(AssertionFailedException::class);
+        $this->expectExceptionMessage('Value for $foo has invalid type, expected string|int|float|Stringable, got ');
+        $this->process(['foo' => new stdClass()], $dataObject);
+    }
+
     public static function invalidStringProvider()
     {
         return [

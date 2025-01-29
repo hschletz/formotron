@@ -4,6 +4,7 @@ namespace Formotron\Test\PropertyTypes\Enum;
 
 use Formotron\AssertionFailedException;
 use Formotron\Test\DataProcessorTestTrait;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 enum StringBackedTestEnum: string
@@ -72,5 +73,32 @@ class StringTest extends TestCase
         $this->expectException(AssertionFailedException::class);
         $this->expectExceptionMessage('Value for $foo has invalid type, expected stringable, got array');
         $this->process(['foo' => []], $dataObject);
+    }
+
+    public static function nullableProvider()
+    {
+        return [[StringBackedTestEnum::Bar], [null]];
+    }
+
+    #[DataProvider('nullableProvider')]
+    public function testNullable(?StringBackedTestEnum $value)
+    {
+        $dataObject = new class
+        {
+            public ?StringBackedTestEnum $foo;
+        };
+        $result = $this->process(['foo' => $value], $dataObject);
+        $this->assertSame($value, $result->foo);
+    }
+
+    public function testNullableWithInvalidType()
+    {
+        $dataObject = new class
+        {
+            public ?StringBackedTestEnum $foo;
+        };
+        $this->expectException(AssertionFailedException::class);
+        $this->expectExceptionMessage('Invalid value for $foo');
+        $this->process(['foo' => ''], $dataObject);
     }
 }

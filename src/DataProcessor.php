@@ -145,6 +145,9 @@ class DataProcessor
         $value = $this->transformValue($property, $value);
         $type = $property->getType();
         if ($type instanceof ReflectionNamedType) {
+            if ($value === null && $type->allowsNull()) {
+                return $value;
+            }
             $typeName = $type->getName();
             switch ($typeName) {
                 case 'string':

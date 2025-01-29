@@ -4,6 +4,7 @@ namespace Formotron\Test\PropertyTypes\Enum;
 
 use Formotron\AssertionFailedException;
 use Formotron\Test\DataProcessorTestTrait;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 enum IntBackedTestEnum: int
@@ -65,5 +66,32 @@ class IntTest extends TestCase
         $this->expectException(AssertionFailedException::class);
         $this->expectExceptionMessage('Value for $foo has invalid type, expected int|int-string, got array');
         $this->process(['foo' => []], $dataObject);
+    }
+
+    public static function nullableProvider()
+    {
+        return [[IntBackedTestEnum::Bar], [null]];
+    }
+
+    #[DataProvider('nullableProvider')]
+    public function testNullable(?IntBackedTestEnum $value)
+    {
+        $dataObject = new class
+        {
+            public ?IntBackedTestEnum $foo;
+        };
+        $result = $this->process(['foo' => $value], $dataObject);
+        $this->assertSame($value, $result->foo);
+    }
+
+    public function testNullableWithInvalidType()
+    {
+        $dataObject = new class
+        {
+            public ?IntBackedTestEnum $foo;
+        };
+        $this->expectException(AssertionFailedException::class);
+        $this->expectExceptionMessage('alue for $foo has invalid type, expected int|int-string, got ');
+        $this->process(['foo' => ''], $dataObject);
     }
 }

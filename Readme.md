@@ -121,6 +121,9 @@ below).
 
 # Data type handling
 
+All types can be declared nullable (i.e. `?string`), allowing NULL values in
+addition to the type-specific rules below.
+
 ## string
 String properties accept any input value that can be safely converted:
 - string
