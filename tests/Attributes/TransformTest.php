@@ -2,6 +2,7 @@
 
 namespace Formotron\Test\Attributes;
 
+use Attribute;
 use Error;
 use Formotron\Attribute\Assert;
 use Formotron\Attribute\Transform;
@@ -12,6 +13,15 @@ use LogicException;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
+#[Attribute(Attribute::TARGET_PROPERTY)]
+class CustomAttribute extends Transform
+{
+    public function __construct(string $arg1, string $arg2)
+    {
+        parent::__construct('TestTransformer', $arg1, $arg2);
+    }
+}
+
 class TransformTest extends TestCase
 {
     use DataProcessorTestTrait;
@@ -20,7 +30,7 @@ class TransformTest extends TestCase
     {
         $transformer = new class implements Transformer
         {
-            public function transform(mixed $value): mixed
+            public function transform(mixed $value, array $args): mixed
             {
                 TestCase::assertEquals('a', $value);
                 return 'b';
@@ -35,6 +45,57 @@ class TransformTest extends TestCase
         };
         $result = $this->process(['foo' => 'a'], $dataObject, $services);
         $this->assertInstanceOf(get_class($dataObject), $result);
+        $this->assertEquals('b', $result->foo);
+    }
+
+    public function testExtraPositionalArguments()
+    {
+        $transformer = $this->createMock(Transformer::class);
+        $transformer->expects($this->once())->method('transform')->with($this->anything(), ['value1', 'value2']);
+        $services = [['TestTransformer', $transformer]];
+
+        $dataObject = new class
+        {
+            #[Transform('TestTransformer', 'value1', 'value2')]
+            public mixed $foo;
+        };
+        $this->process(['foo' => 'a'], $dataObject, $services);
+    }
+
+    public function testExtraNamedArguments()
+    {
+        $transformer = $this->createMock(Transformer::class);
+        $transformer->expects($this->once())->method('transform')->with($this->anything(), ['arg1' => 'value1', 'arg2' => 'value2']);
+        $services = [['TestTransformer', $transformer]];
+
+        $dataObject = new class
+        {
+            #[Transform('TestTransformer', arg1: 'value1', arg2: 'value2')]
+            public mixed $foo;
+        };
+        $this->process(['foo' => 'a'], $dataObject, $services);
+    }
+
+    public function testCustomAttribute()
+    {
+        $transformer = new class implements Transformer
+        {
+            public function transform(mixed $value, array $args): mixed
+            {
+                TestCase::assertEquals('a', $value);
+                TestCase::assertEquals(['value1', 'value2'], $args);
+
+                return 'b';
+            }
+        };
+        $services = [['TestTransformer', $transformer]];
+
+        $dataObject = new class
+        {
+            #[CustomAttribute('value1', 'value2')]
+            public mixed $foo;
+        };
+        $result = $this->process(['foo' => 'a'], $dataObject, $services);
         $this->assertEquals('b', $result->foo);
     }
 
@@ -69,7 +130,7 @@ class TransformTest extends TestCase
     {
         $transformer = new class implements Transformer
         {
-            public function transform(mixed $value): mixed
+            public function transform(mixed $value, array $args): mixed
             {
                 return 'b';
             }

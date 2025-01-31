@@ -264,7 +264,7 @@ class implementing the `Formotron\Transformer` interface:
 ```php
 interface Transformer
 {
-    public function transform(mixed $value): mixed;
+    public function transform(mixed $value, array $args): mixed;
 }
 ```
 
@@ -277,13 +277,16 @@ the name of a service – typically a class name – which will be pulled from t
 container supplied to the DataProcessor's constructor. The container must
 resolve the name to an object implementing the `Transformer` interface.
 
+Additional arguments to the attribute are passed to the `transform()` method as
+the `$args` parameter. See "Passing extra arguments to attributes" below.
+
 ```php
 use Formotron\Attribute\Transform;
 
 // The container must resolve Trim::class to an instance of this class.
 class Trim implements Formotron\Transformer
 {
-    public function transform(mixed $value): mixed
+    public function transform(mixed $value, array $args): mixed
     {
         if (!is_string($value)) {
             throw new Formotron\AssertionFailedException('not a string');
@@ -313,7 +316,7 @@ use Formotron\Attribute\Transform;
 
 class UserMapper implements Formotron\Transformer
 {
-    public function transform(mixed $value): mixed
+    public function transform(mixed $value, array $args): mixed
     {
         // fetch_user_from_database() accepts a string/int key and returns
         // a corresponding User object, or throws an exception if the key is
@@ -496,6 +499,95 @@ class DataObject
 ```
 
 
+# Passing extra arguments to attributes
+
+Extra arguments to the `Transform` attribute are passed to the `transform()`
+method, allowing generic implementations with parameters.
+
+```php
+class DataObject
+{
+    #[Transform(ToBoolTransformer::class), 'yes', 'no']
+    public bool $foo;
+}
+
+class ToBoolTransformer implements Transformer
+{
+    public function transform(mixed $value, array $args): mixed
+    {
+        [$trueValue, $falseValue] = $args;
+        return match ($value) {
+            $trueValue => true,
+            $falseValue => false,
+        };
+    }
+}
+```
+
+Named arguments are also possible:
+
+```php
+class DataObject
+{
+    #[Transform(ToBoolTransformer::class), trueValue: 'yes', falseValue: 'no']
+    public bool $foo;
+}
+
+class ToBoolTransformer implements Transformer
+{
+    public function transform(mixed $value, array $args): mixed
+    {
+        return match ($value) {
+            $args['trueValue'] => true,
+            $args['falseValue'] => false,
+        };
+    }
+}
+```
+
+The arguments are not defined in code. Arbitrary names and values may be passed.
+The transformer may have to validate its arguments, editors cannot provide hints
+and autocompletion, and code analysis tools cannot check types, or may even
+complain about undefined argument names.
+
+To provide language-level definitions for attribute arguments, create an
+attribute class which extends the `Transform` attribute, and define the
+arguments in its constructor. Argument types can be anything that is allowed for
+attribute arguments, and they can have default values.
+
+The service name does not have to be provided as a parameter. If the attribute
+is only used in conjunction with a particular transformer, the service name can
+be hardcoded in the constructor.
+
+```php
+
+#[Attribute(Attribute::TARGET_PROPERTY)]
+class ToBool extends Transform
+{
+    public function __construct(mixed $trueValue, mixed $falseValue)
+    {
+        parent::__construct(ToBoolTransfomer::class, trueValue: $trueValue, falseValue: $falseValue);
+    }
+}
+
+class DataObject
+{
+    #[ToBool(trueValue: 'yes', falseValue: 'no']
+    public bool $foo;
+}
+```
+
+A strict constructor signature provides basic validation of arguments.
+Additional validation might be necessary, either in the constructor or in the
+transformer. Keep in mind that attribute arguments are not user input, but part
+of the code. Invalid arguments are a bug in the code that uses the attribute,
+not a runtime issue.
+
+If there is a chance that the transformer may be used directly, i.e. not via a
+`Transform` attribute, it should validate its arguments more thoroughly,
+particularly if its extra arguments may contain user input.
+
+
 # Error handling
 
 ## Handling logical errors
@@ -675,7 +767,7 @@ use Formotron\Attribute\Transform;
 
 class Exists implements Formotron\Transformer
 {
-    public function transform(mixed $value): mixed
+    public function transform(mixed $value, array $args): mixed
     {
         // This is only encountered if the checkbox is checked, so we can ignore
         // the actual value unless this transformer may be used in a different

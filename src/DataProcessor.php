@@ -9,6 +9,7 @@ use Formotron\Attribute\PreProcess;
 use Formotron\Attribute\Transform;
 use LogicException;
 use Psr\Container\ContainerInterface;
+use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionEnum;
 use ReflectionNamedType;
@@ -213,15 +214,16 @@ class DataProcessor
 
     private function transformValue(ReflectionProperty $property, mixed $value): mixed
     {
-        $transformAttribute = $property->getAttributes(Transform::class)[0] ?? null;
+        $transformAttribute = $property->getAttributes(Transform::class, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null;
         if ($transformAttribute) {
-            $service = $transformAttribute->newInstance()->transformerService;
+            $instance = $transformAttribute->newInstance();
+            $service = $instance->transformerService;
             $transformer = $this->container->get($service);
             if (!$transformer instanceof Transformer) {
                 throw new LogicException("Service {$service} does not implement " . Transformer::class);
             }
             /** @var mixed */
-            $value = $transformer->transform($value);
+            $value = $transformer->transform($value, $instance->args);
         }
 
         return $value;
