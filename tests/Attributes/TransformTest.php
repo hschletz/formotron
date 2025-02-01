@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
 use stdClass;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class CustomAttribute extends Transform
+class CustomTransformAttribute extends Transform
 {
     public function __construct(string $arg1, string $arg2)
     {
@@ -92,7 +92,7 @@ class TransformTest extends TestCase
 
         $dataObject = new class
         {
-            #[CustomAttribute('value1', 'value2')]
+            #[CustomTransformAttribute('value1', 'value2')]
             public mixed $foo;
         };
         $result = $this->process(['foo' => 'a'], $dataObject, $services);
@@ -137,7 +137,7 @@ class TransformTest extends TestCase
         };
         $validator = new class implements Validator
         {
-            public function getValidationErrors(mixed $value): array
+            public function getValidationErrors(mixed $value, array $args): array
             {
                 TestCase::assertEquals('b', $value);
                 return [];

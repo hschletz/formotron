@@ -19,7 +19,10 @@ interface Validator
      *
      * If the input value is valid, return an empty array.
      *
+     * $args contains the extra arguments passed to Assert attribute.
+     *
+     * @param mixed[] $args
      * @return mixed[]
      */
-    public function getValidationErrors(mixed $value): array;
+    public function getValidationErrors(mixed $value, array $args): array;
 }

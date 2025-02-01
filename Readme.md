@@ -361,7 +361,7 @@ validator. A validator is a class implementing the `Formotron\Validator` interfa
 ```php
 interface Validator
 {
-    public function getValidationErrors(mixed $value): array;
+    public function getValidationErrors(mixed $value, array $args): array;
 }
 ```
 
@@ -383,13 +383,17 @@ name of a service – typically a class name – which will be pulled from the
 container supplied to the DataProcessor's constructor. The container must
 resolve the name to an object implementing the `Validator` interface.
 
+Additional arguments to the attribute are passed to the `getValidationErrors()`
+method as the `$args` parameter. See "Passing extra arguments to attributes"
+below.
+
 ```php
 use Formotron\Attribute\Assert;
 
 // The container must resolve MaxLength::class to an instance of this class.
 class MaxLength implements Formotron\Validator
 {
-    public function getValidationErrors(mixed $value): array
+    public function getValidationErrors(mixed $value, array $args): array
     {
         if (is_string($value) && mb_strlen($value) <= 100) {
             return [];
@@ -501,8 +505,9 @@ class DataObject
 
 # Passing extra arguments to attributes
 
-Extra arguments to the `Transform` attribute are passed to the `transform()`
-method, allowing generic implementations with parameters.
+Extra arguments to the `Transform` and `Assert` attributes are passed to the
+`transform()`/`getValidationErrors()` method, allowing generic implementations
+with parameters.
 
 ```php
 class DataObject
@@ -546,18 +551,18 @@ class ToBoolTransformer implements Transformer
 ```
 
 The arguments are not defined in code. Arbitrary names and values may be passed.
-The transformer may have to validate its arguments, editors cannot provide hints
-and autocompletion, and code analysis tools cannot check types, or may even
-complain about undefined argument names.
+The transformer/validator may have to validate its arguments, editors cannot
+provide hints and autocompletion, and code analysis tools cannot check types, or
+may even complain about undefined argument names.
 
 To provide language-level definitions for attribute arguments, create an
-attribute class which extends the `Transform` attribute, and define the
+attribute class which extends the `Transform`/`Assert` attribute, and define the
 arguments in its constructor. Argument types can be anything that is allowed for
 attribute arguments, and they can have default values.
 
 The service name does not have to be provided as a parameter. If the attribute
-is only used in conjunction with a particular transformer, the service name can
-be hardcoded in the constructor.
+is only used in conjunction with a particular transformer/validator, the service
+name can be hardcoded in the constructor.
 
 ```php
 
@@ -578,13 +583,13 @@ class DataObject
 ```
 
 A strict constructor signature provides basic validation of arguments.
-Additional validation might be necessary, either in the constructor or in the
-transformer. Keep in mind that attribute arguments are not user input, but part
-of the code. Invalid arguments are a bug in the code that uses the attribute,
-not a runtime issue.
+Additional validation might be necessary, either in the attribute constructor or
+in the invoked method. Keep in mind that attribute arguments are not user input,
+but part of the code. Invalid arguments are a bug in the code that uses the
+attribute, not a runtime issue.
 
-If there is a chance that the transformer may be used directly, i.e. not via a
-`Transform` attribute, it should validate its arguments more thoroughly,
+If there is a chance that the transformer/validator may be used directly, i.e.
+not via an attribute, it should validate its arguments more thoroughly,
 particularly if its extra arguments may contain user input.
 
 

@@ -2,6 +2,7 @@
 
 namespace Formotron\Test\Attributes;
 
+use Attribute;
 use Formotron\AssertionFailedException;
 use Formotron\Attribute\Assert;
 use Formotron\Test\DataProcessorTestTrait;
@@ -9,6 +10,15 @@ use Formotron\Validator;
 use LogicException;
 use PHPUnit\Framework\TestCase;
 use stdClass;
+
+#[Attribute(Attribute::TARGET_PROPERTY)]
+class CustomValidatorAttribute extends Assert
+{
+    public function __construct(string $arg1, string $arg2)
+    {
+        parent::__construct('TestValidator', $arg1, $arg2);
+    }
+}
 
 class AssertTest extends TestCase
 {
@@ -51,6 +61,60 @@ class AssertTest extends TestCase
         $this->expectException(AssertionFailedException::class);
         $this->expectExceptionMessage('Assertion Validator failed on $foo');
         $this->process(['foo' => 'bar'], $dataObject, $services);
+    }
+
+    public function testExtraPositionalArguments()
+    {
+        $validator = $this->createMock(Validator::class);
+        $validator->expects($this->once())->method('getValidationErrors')->with($this->anything(), ['value1', 'value2']);
+        $services = [['TestValidator', $validator]];
+
+        $dataObject = new class
+        {
+            #[Assert('TestValidator', 'value1', 'value2')]
+            public mixed $foo;
+        };
+        $this->process(['foo' => 'a'], $dataObject, $services);
+    }
+
+    public function testExtraNamedArguments()
+    {
+        $validator = $this->createMock(Validator::class);
+        $validator->expects($this->once())->method('getValidationErrors')->with($this->anything(), ['arg1' => 'value1', 'arg2' => 'value2']);
+        $services = [['TestValidator', $validator]];
+
+        $dataObject = new class
+        {
+            #[Assert('TestValidator', arg1: 'value1', arg2: 'value2')]
+            public mixed $foo;
+        };
+        $this->process(['foo' => 'a'], $dataObject, $services);
+    }
+
+    public function testCustomAttribute()
+    {
+        $validator = new class implements Validator
+        {
+            public bool $hasRun = false;
+
+            public function getValidationErrors(mixed $value, array $args): array
+            {
+                TestCase::assertEquals('a', $value);
+                TestCase::assertEquals(['value1', 'value2'], $args);
+                $this->hasRun = true;
+
+                return [];
+            }
+        };
+        $services = [['TestValidator', $validator]];
+
+        $dataObject = new class
+        {
+            #[CustomValidatorAttribute('value1', 'value2')]
+            public mixed $foo;
+        };
+        $this->process(['foo' => 'a'], $dataObject, $services);
+        $this->assertTrue($validator->hasRun, 'Validator has not been invoked');
     }
 
     public function testInvalidService()

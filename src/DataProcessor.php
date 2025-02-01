@@ -284,13 +284,13 @@ class DataProcessor
 
     private function processAssertions(ReflectionProperty $property, mixed $value): void
     {
-        foreach ($property->getAttributes(Assert::class) as $attribute) {
+        foreach ($property->getAttributes(Assert::class, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
             $assertion = $attribute->newInstance();
             $validator = $this->container->get($assertion->validatorService);
             if (!$validator instanceof Validator) {
                 throw new LogicException("Service {$assertion->validatorService} does not implement " . Validator::class);
             }
-            $errors = $validator->getValidationErrors($value);
+            $errors = $validator->getValidationErrors($value, $assertion->args);
             if ($errors) {
                 throw new AssertionFailedException(sprintf(
                     'Assertion %s failed on $%s',
