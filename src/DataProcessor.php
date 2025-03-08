@@ -46,9 +46,7 @@ use ValueError;
  */
 class DataProcessor
 {
-    public function __construct(private ContainerInterface $container)
-    {
-    }
+    public function __construct(private ContainerInterface $container) {}
 
     /**
      * @template T of object
@@ -235,6 +233,7 @@ class DataProcessor
     private function parseToEnum(string $typeName, string $key, mixed $value): UnitEnum
     {
         if ($value instanceof $typeName) {
+            /** @var UnitEnum $value */
             return $value;
         }
         $enum = new ReflectionEnum($typeName);
