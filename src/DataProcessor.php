@@ -189,7 +189,7 @@ class DataProcessor
                     if (enum_exists($typeName)) {
                         /** @var class-string<UnitEnum> $typeName */
                         $value = $this->parseToEnum($typeName, $key, $value);
-                    } elseif (class_exists($typeName)) {
+                    } elseif (class_exists($typeName) || interface_exists($typeName)) {
                         if (!$value instanceof $typeName) {
                             throw new AssertionFailedException(sprintf(
                                 'Value for $%s has invalid type, expected %s, got %s',
@@ -199,7 +199,7 @@ class DataProcessor
                             ));
                         }
                     } else {
-                        // "object", "self", "parent", interface
+                        // "object", "self", "parent"
                         throw new LogicException('Cannot handle properties of type ' . $typeName);
                     }
             }

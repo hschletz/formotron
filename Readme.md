@@ -172,6 +172,9 @@ class DataObject
 ## class
 Properties of a class type accept only instances of that class or a subclass.
 
+## interface
+Properties of an interface type accept only instances of a class that implements the interface.
+
 ## mixed
 Properties declared as `mixed` or without a type accept any input value.
 
