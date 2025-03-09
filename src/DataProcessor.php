@@ -65,6 +65,19 @@ class DataProcessor
 
     /**
      * @template T of object
+     * @param iterable<mixed[]> $input
+     * @param class-string<T> $className
+     * @return iterable<T>
+     */
+    public function iterate(iterable $input, string $className): iterable
+    {
+        foreach ($input as $element) {
+            yield $this->process($element, $className);
+        }
+    }
+
+    /**
+     * @template T of object
      * @param mixed[] $input
      * @param ReflectionClass<T> $class
      * @return mixed[]

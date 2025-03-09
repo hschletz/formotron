@@ -76,15 +76,24 @@ class MyClass
 }
 ```
 
-The `DataProcessor` class has a single public method `process()` which receives
-the input data array and the name of a data object class. It returns a fully
+The `DataProcessor` class has a public method `process()` which receives the
+input data array and the name of a data object class. It returns a fully
 populated instance of that class or throws a
 `Formotron\AssertionFailedException` if input data is invalid.
 
 ```php
-$data = $dataProcessor->process($_POST, FormData::class);
+$dataObject = $dataProcessor->process($_POST, FormData::class);
 ```
 
+The `iterate()` method works similar, but requires an iterable of arrays (for
+example, a database result set). It yields a populated data object instance for
+each element in the input iterable.
+
+```php
+foreach ($dataProcessor->iterate($resultSet, RowData::class) as $rowObject) {
+    ...
+}
+```
 
 # Defining a data object
 
