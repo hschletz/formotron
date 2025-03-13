@@ -184,6 +184,19 @@ class DataProcessor
                     }
                     break;
                 case 'int':
+                    if (
+                        (is_string($value) || $value instanceof Stringable) &&
+                        preg_match('/^[+-]?[0-9]+$/', (string) $value)
+                    ) {
+                        $value = (int) (string) $value;
+                    } elseif (!is_int($value)) {
+                        throw new AssertionFailedException(sprintf(
+                            'Value for $%s has invalid type, expected int or parseable string, got %s',
+                            $key,
+                            gettype($value),
+                        ));
+                    }
+                    break;
                 case 'float':
                 case 'iterable':
                     throw new LogicException("Handling of $typeName properties is not implemented yet");

@@ -139,6 +139,12 @@ String properties accept any input value that can be safely converted:
 - int, float (default PHP conversion, not locale-specific)
 - objects with a `__toString()` method
 
+## int
+Integer properties accept `int` values and strings that can be parsed as an
+integer by strict rules. Only decimal digits and an optional sign (+/-) at the
+beginning of a string are allowed. Every other input value is rejected, even if
+PHP's parsing rules would allow it.
+
 ## bool
 Bool properties accept only `true` or `false`. Formotron does not attempt to
 cast other values to `bool` because PHP's casting rules are error prone and may
