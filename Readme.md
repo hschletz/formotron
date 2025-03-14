@@ -162,7 +162,9 @@ defined enum value. This is very useful for constraining values to a limited set
 (for example, radio buttons and dropdowns with a static set of values). Valid
 input values are defined by the type of enum:
 - Basic enums accept the symbolic name (case sensitive).
-- Backed enums accept the backing value only, but not the name.
+- Backed enums accept the symbolic name (case sensitive) by default. If the
+  `Formotron\Attribute\UseBackingValue` attribute is set on a property, only the
+  backing value is accepted, but not the name.
 
 ```php
 enum Basic
@@ -180,7 +182,11 @@ enum Backed: string
 class DataObject
 {
     public Basic $basic; // valid values: 'Foo', 'Bar', Basic::Foo, Basic::Bar
-    public Backed $backed; // valid values: 'foo', 'bar', Backed::Foo, Backed::Bar
+
+    public Backed $backedUsingName; // valid values: 'Foo', 'Bar', Backed::Foo, Backed::Bar
+
+    #[UseBackingValue]
+    public Backed $backedUsingValue; // valid values: 'foo', 'bar', Backed::Foo, Backed::Bar
 }
 ```
 

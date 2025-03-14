@@ -7,6 +7,7 @@ use Formotron\Attribute\Assert;
 use Formotron\Attribute\Key;
 use Formotron\Attribute\PreProcess;
 use Formotron\Attribute\Transform;
+use Formotron\Attribute\UseBackingValue;
 use LogicException;
 use Psr\Container\ContainerInterface;
 use ReflectionAttribute;
@@ -214,7 +215,7 @@ class DataProcessor
                 default:
                     if (enum_exists($typeName)) {
                         /** @var class-string<UnitEnum> $typeName */
-                        $value = $this->parseToEnum($typeName, $key, $value);
+                        $value = $this->parseToEnum($typeName, $key, $value, $property);
                     } elseif (class_exists($typeName) || interface_exists($typeName)) {
                         if (!$value instanceof $typeName) {
                             throw new AssertionFailedException(sprintf(
@@ -256,7 +257,7 @@ class DataProcessor
     /**
      * @param class-string<UnitEnum> $typeName
      */
-    private function parseToEnum(string $typeName, string $key, mixed $value): UnitEnum
+    private function parseToEnum(string $typeName, string $key, mixed $value, ReflectionProperty $property): UnitEnum
     {
         if ($value instanceof $typeName) {
             /** @var UnitEnum $value */
@@ -264,7 +265,7 @@ class DataProcessor
         }
         $enum = new ReflectionEnum($typeName);
         $backingType = $enum->getBackingType();
-        if ($backingType) {
+        if ($backingType && $property->getAttributes(UseBackingValue::class)) {
             // Backed enum, $value is interpreted as backing value
             // @phpstan-ignore match.unhandled (unmatched value not to be expected)
             $value = match ((string) $backingType) {
@@ -291,7 +292,8 @@ class DataProcessor
                 throw new AssertionFailedException("Invalid value for \$$key: $value");
             }
         } else {
-            // Pure enum, $value is interpreted as name
+            // Pure enum or backed enum without the UseBackingValue set on the
+            // property. $value is interpreted as name.
             if (!is_string($value)) {
                 throw new AssertionFailedException(sprintf(
                     'Value for $%s has invalid type, expected string, got %s',

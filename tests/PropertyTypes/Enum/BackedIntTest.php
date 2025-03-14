@@ -3,6 +3,7 @@
 namespace Formotron\Test\PropertyTypes\Enum;
 
 use Formotron\AssertionFailedException;
+use Formotron\Attribute\UseBackingValue;
 use Formotron\Test\DataProcessorTestTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -12,7 +13,7 @@ enum IntBackedTestEnum: int
     case Bar = 42;
 }
 
-class IntTest extends TestCase
+class BackedIntTest extends TestCase
 {
     use DataProcessorTestTrait;
 
@@ -20,6 +21,7 @@ class IntTest extends TestCase
     {
         $dataObject = new class
         {
+            #[UseBackingValue]
             public IntBackedTestEnum $foo;
         };
         $result = $this->process(['foo' => IntBackedTestEnum::Bar], $dataObject);
@@ -30,6 +32,7 @@ class IntTest extends TestCase
     {
         $dataObject = new class
         {
+            #[UseBackingValue]
             public IntBackedTestEnum $foo;
         };
         $result = $this->process(['foo' => 42], $dataObject);
@@ -40,6 +43,7 @@ class IntTest extends TestCase
     {
         $dataObject = new class
         {
+            #[UseBackingValue]
             public IntBackedTestEnum $foo;
         };
         $result = $this->process(['foo' => '42'], $dataObject);
@@ -50,6 +54,7 @@ class IntTest extends TestCase
     {
         $dataObject = new class
         {
+            #[UseBackingValue]
             public IntBackedTestEnum $foo;
         };
         $this->expectException(AssertionFailedException::class);
@@ -61,6 +66,7 @@ class IntTest extends TestCase
     {
         $dataObject = new class
         {
+            #[UseBackingValue]
             public IntBackedTestEnum $foo;
         };
         $this->expectException(AssertionFailedException::class);
@@ -78,6 +84,7 @@ class IntTest extends TestCase
     {
         $dataObject = new class
         {
+            #[UseBackingValue]
             public ?IntBackedTestEnum $foo;
         };
         $result = $this->process(['foo' => $value], $dataObject);
@@ -88,6 +95,7 @@ class IntTest extends TestCase
     {
         $dataObject = new class
         {
+            #[UseBackingValue]
             public ?IntBackedTestEnum $foo;
         };
         $this->expectException(AssertionFailedException::class);
