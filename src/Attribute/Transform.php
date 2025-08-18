@@ -3,28 +3,38 @@
 namespace Formotron\Attribute;
 
 use Attribute;
+use Override;
 
 /**
- * Add transformation to property.
+ * Apply Transformer service to property.
  *
  * Set this attribute on a property to transform the input value into something
- * different. The $transformerService argument is passed to the container, which
- * must resolve to an object implementing the @see Formotron\Transformer
- * interface. Additional arguments are passed to @see Transformer::transform().
+ * different, based on the provided Transformer service.
  */
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class Transform
+final class Transform implements TransformerServiceAttribute
 {
-    /**
-     * @var mixed[] $args
-     */
-    public readonly array $args;
+    /** @var mixed[] */
+    private array $arguments;
 
     /**
-     * @param mixed[] $args
+     * @param string $serviceName Service name passed to the container
+     * @param mixed ...$arguments Extra arguments passed to Transformer::transform()
      */
-    public function __construct(public readonly string $transformerService, ...$args)
+    public function __construct(private string $serviceName, mixed ...$arguments)
     {
-        $this->args = $args;
+        $this->arguments = $arguments;
+    }
+
+    #[Override]
+    public function getServiceName(): string
+    {
+        return $this->serviceName;
+    }
+
+    #[Override]
+    public function getArguments(): array
+    {
+        return $this->arguments;
     }
 }

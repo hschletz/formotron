@@ -6,7 +6,8 @@ use BackedEnum;
 use Formotron\Attribute\Assert;
 use Formotron\Attribute\Key;
 use Formotron\Attribute\PreProcess;
-use Formotron\Attribute\Transform;
+use Formotron\Attribute\TransformerAttribute;
+use Formotron\Attribute\TransformerServiceAttribute;
 use Formotron\Attribute\UseBackingValue;
 use LogicException;
 use Psr\Container\ContainerInterface;
@@ -239,16 +240,36 @@ class DataProcessor
 
     private function transformValue(ReflectionProperty $property, mixed $value): mixed
     {
-        $transformAttribute = $property->getAttributes(Transform::class, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null;
-        if ($transformAttribute) {
-            $instance = $transformAttribute->newInstance();
-            $service = $instance->transformerService;
+        // An attribute implementing both interfaces would appear twice in the
+        // resulting array. array_unique() allows distiguishing from multiple
+        // attributes.
+        $attributes = array_unique(array_merge(
+            $property->getAttributes(TransformerAttribute::class, ReflectionAttribute::IS_INSTANCEOF),
+            $property->getAttributes(TransformerServiceAttribute::class, ReflectionAttribute::IS_INSTANCEOF),
+        ));
+        if (count($attributes) > 1) {
+            throw new LogicException('Only 1 transformer can be attached to a property');
+        }
+        $instance = ($attributes[0] ?? null)?->newInstance();
+        if ($instance instanceof TransformerAttribute) {
+            if ($instance instanceof TransformerServiceAttribute) {
+                throw new LogicException(sprintf(
+                    'Attribute %s must implement %s or %s, but not both',
+                    get_class($instance),
+                    TransformerAttribute::class,
+                    TransformerServiceAttribute::class,
+                ));
+            }
+            /** @var mixed */
+            $value = $instance->transform($value);
+        } elseif ($instance instanceof TransformerServiceAttribute) {
+            $service = $instance->getServiceName();
             $transformer = $this->container->get($service);
             if (!$transformer instanceof Transformer) {
                 throw new LogicException("Service {$service} does not implement " . Transformer::class);
             }
             /** @var mixed */
-            $value = $transformer->transform($value, $instance->args);
+            $value = $transformer->transform($value, $instance->getArguments());
         }
 
         return $value;

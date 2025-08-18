@@ -278,90 +278,137 @@ confusing though, and is not recommended.
 Values from the input array may not be suitable for in-application
 representation. Further processing is often necessary, like
 - trimming surrounding whitespace from a string
-- converting empty strings to NULL
+- converting empty strings to `NULL`
 - converting a timestamp string to a `DateTime` or `DateTimeImmutable` object
 - fetching an object from a database using the input value as key
 
-This is supported by attaching a transformer to a property. A transformer is a
-class implementing the `Formotron\Transformer` interface:
+This is supported by attaching a transformer to a property. A transformer is an
+attribute implementing either the `Formotron\Attribute\TransformerAttribute` or
+the `Formotron\Attribute\TransformerServiceAttribute` interface. Implementations
+can do anything with the input value: leave it as is, modify it, throw an
+exception, ...
 
-```php
-interface Transformer
-{
-    public function transform(mixed $value, array $args): mixed;
-}
-```
-
-Implementations can do anything with the input value: leave it as is, modify it,
-throw an exception, ... The returned value is still subject to the property's
-validation rules.
-
-Transformers are attached to a property via the `Transform` attribute. It takes
-the name of a service – typically a class name – which will be pulled from the
-container supplied to the DataProcessor's constructor. The container must
-resolve the name to an object implementing the `Transformer` interface.
-
-Additional arguments to the attribute are passed to the `transform()` method as
-the `$args` parameter. See "Passing extra arguments to attributes" below.
-
-```php
-use Formotron\Attribute\Transform;
-
-// The container must resolve Trim::class to an instance of this class.
-class Trim implements Formotron\Transformer
-{
-    public function transform(mixed $value, array $args): mixed
-    {
-        if (!is_string($value)) {
-            throw new Formotron\AssertionFailedException('not a string');
-        }
-        return trim($value);
-    }
-}
-
-class DataObject
-{
-    #[Transform(Trim::class)]
-    public string $foo;
-}
-```
+Because validation occurs only after transformation, transformers must account
+for potentially invalid input values. The returned value is still subject to the
+property's validation rules.
 
 Only one transformer can be attached to a single property. Otherwise the order
 of execution could not be relied upon, and the outcome would become hard to
-predict. If you need multple transformations, (for example, trim whitespace
+predict. If you need multple transformations (for example, trim whitespace
 first, only then convert an empty string to NULL), write a transformer that does
 all transformations in a single step.
 
-Transformers are run before validation. Only the output of the transfomer is
-subject to validation rules, not the raw input value.
+## Transformers without dependencies
+
+Transformers which can be instantiated directly implement the
+`Formotron\Attribute\TransformerAttribute` interface. Like any other attribute
+class, they can take arguments that are passed to its constructor.
 
 ```php
-use Formotron\Attribute\Transform;
-
-class UserMapper implements Formotron\Transformer
+#[Attribute(Attribute::TARGET_PROPERTY)]
+class ToBool implements Formotron\Attribute\TransformerAttribute
 {
-    public function transform(mixed $value, array $args): mixed
+    public function __construct(private mixed $trueValue, private mixed $falseValue)
     {
-        // fetch_user_from_database() accepts a string/int key and returns
-        // a corresponding User object, or throws an exception if the key is
-        // invalid.
-        return fetch_user_from_database($value);
+        assert($trueValue !== $falseValue);
+    }
+
+    #[Override]
+    public function transform(mixed $value): mixed
+    {
+        return match ($value) {
+            $this->trueValue => true,
+            $this->falseValue => false,
+        };
     }
 }
 
 class DataObject
 {
-    #[Transform(UserMapper::class)]
+    // input values 't' and 'f' will be transformed to a boolean,
+    // other values lead to an error.
+    #[ToBool(trueValue: 't', falseValue: 'f')]
+    public bool $foo;
+}
+```
+
+## Transformers instantiated from a container
+
+When the transformation must be done in a class instantiated from the container
+(typically to have dependencies injected), that class must implement the
+`Formotron\Transformer` interface:
+
+```php
+// The container must resolve UserMapper::class to an instance of this class.
+class UserMapper implements Formotron\Transformer
+{
+    // The Database object will be injected by the container
+    public function __construct(private Database $database) {}
+
+    #[Override]
+    public function transform(mixed $value, array $args): mixed
+    {
+        assert(!empty($args['role']))
+
+        $user = $this->database->fetchOne(
+            'SELECT * FROM users WHERE id = ? AND role = ?',
+            [$value, $args['role']]
+        );
+        if (!$user) {
+            throw new InvalidArgumentException('invalid user or wrong role')
+        }
+        // somehow convert $user to a User object
+        ...
+        return $userObject;
+    }
+}
+```
+
+This service cannot be defined as an attribute, because attributes receive their
+arguments through their constructor, which this class uses for its dependencies.
+A separate attribute class is required which must implement the
+`Formotron\Attribute\TransformerServiceAttribute` interface. A default
+implementation exists, `Formotron\Attribute\Transform`, which requires the
+service name as its first argument, and has additional arguments passed as the
+second parameter to the service's `transform()` method.
+
+```php
+class DataObject
+{
+    #[Formotron\Attribute\Transform(UserMapper::class, role: 'admin')]
     public User $user;
 }
 ```
 
-In this example, the `user` key must hold a string/int value (whatever the
-database uses as key), and the data object will receive the resulting object,
-which must be of the `User` class or a subclass of `User`.
+When using extra arguments, it is often better to define the attribute manually.
+See _"Passing extra arguments to attributes"_ below.
 
-Because validation occurs only after transformation, transformer implementations
-must account for potentially invalid data.
+```php
+#[Attribute(Attribute::TARGET_PROPERTY)]
+class MapUser implements Formotron\Attribute\TransformerServiceAttribute
+{
+    public function __construct(private string $role) {}
+
+    #[Override]
+    public function getServiceName(): string
+    {
+        return UserMapper::class;
+    }
+
+    #[Override]
+    public function getArguments(): array
+    {
+        // ['role' => $this->role];
+        return get_object_vars($this);
+    }
+}
+
+class DataObject
+{
+    #[MapUser('admin')]
+    public User $user;
+}
+```
 
 
 # Validating values
@@ -408,7 +455,7 @@ container supplied to the DataProcessor's constructor. The container must
 resolve the name to an object implementing the `Validator` interface.
 
 Additional arguments to the attribute are passed to the `getValidationErrors()`
-method as the `$args` parameter. See "Passing extra arguments to attributes"
+method as the `$args` parameter. See _"Passing extra arguments to attributes"_
 below.
 
 ```php
@@ -533,78 +580,15 @@ Extra arguments to the `Transform` and `Assert` attributes are passed to the
 `transform()`/`getValidationErrors()` method, allowing generic implementations
 with parameters.
 
-```php
-class DataObject
-{
-    #[Transform(ToBoolTransformer::class), 'yes', 'no']
-    public bool $foo;
-}
-
-class ToBoolTransformer implements Transformer
-{
-    public function transform(mixed $value, array $args): mixed
-    {
-        [$trueValue, $falseValue] = $args;
-        return match ($value) {
-            $trueValue => true,
-            $falseValue => false,
-        };
-    }
-}
-```
-
-Named arguments are also possible:
-
-```php
-class DataObject
-{
-    #[Transform(ToBoolTransformer::class), trueValue: 'yes', falseValue: 'no']
-    public bool $foo;
-}
-
-class ToBoolTransformer implements Transformer
-{
-    public function transform(mixed $value, array $args): mixed
-    {
-        return match ($value) {
-            $args['trueValue'] => true,
-            $args['falseValue'] => false,
-        };
-    }
-}
-```
-
 The arguments are not defined in code. Arbitrary names and values may be passed.
-The transformer/validator may have to validate its arguments, editors cannot
-provide hints and autocompletion, and code analysis tools cannot check types, or
-may even complain about undefined argument names.
+The transformer/validator may have to validate the extra arguments, editors
+cannot provide hints and autocompletion, and code analysis tools cannot check
+types, or may even complain about undefined argument names.
 
 To provide language-level definitions for attribute arguments, create an
-attribute class which extends the `Transform`/`Assert` attribute, and define the
+attribute class which implements the appropriate interface, and define the
 arguments in its constructor. Argument types can be anything that is allowed for
 attribute arguments, and they can have default values.
-
-The service name does not have to be provided as a parameter. If the attribute
-is only used in conjunction with a particular transformer/validator, the service
-name can be hardcoded in the constructor.
-
-```php
-
-#[Attribute(Attribute::TARGET_PROPERTY)]
-class ToBool extends Transform
-{
-    public function __construct(mixed $trueValue, mixed $falseValue)
-    {
-        parent::__construct(ToBoolTransfomer::class, trueValue: $trueValue, falseValue: $falseValue);
-    }
-}
-
-class DataObject
-{
-    #[ToBool(trueValue: 'yes', falseValue: 'no']
-    public bool $foo;
-}
-```
 
 A strict constructor signature provides basic validation of arguments.
 Additional validation might be necessary, either in the attribute constructor or
