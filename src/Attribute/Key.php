@@ -13,9 +13,7 @@ use Attribute;
  * it is set as a Key attribute on a different property.
  */
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class Key
+final class Key
 {
-    public function __construct(public readonly string $key)
-    {
-    }
+    public function __construct(public readonly string $key) {}
 }

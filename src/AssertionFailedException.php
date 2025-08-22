@@ -7,6 +7,4 @@ use InvalidArgumentException;
 /**
  * Thrown when an assertion fails (fatal error).
  */
-class AssertionFailedException extends InvalidArgumentException
-{
-}
+final class AssertionFailedException extends InvalidArgumentException {}

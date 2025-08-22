@@ -13,9 +13,7 @@ use Attribute;
  * Formotron\PreProcessor interface.
  */
 #[Attribute(Attribute::TARGET_CLASS | Attribute::IS_REPEATABLE)]
-class PreProcess
+final class PreProcess
 {
-    public function __construct(public readonly string $preProcessorService)
-    {
-    }
+    public function __construct(public readonly string $preProcessorService) {}
 }

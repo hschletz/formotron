@@ -49,6 +49,7 @@ class MiscTest extends TestCase
         };
         $class = get_class($dataObject);
 
+        // @phpstan-ignore method.unresolvableReturnType (mocking final class)
         $dataProcessor = $this->createPartialMock(DataProcessor::class, ['process']);
         $dataProcessor
             ->expects($this->exactly(2))

@@ -47,7 +47,7 @@ use ValueError;
  * Processing occurs according to property's data types and extra rules defined
  * by attributes.
  */
-class DataProcessor
+final class DataProcessor
 {
     public function __construct(private ContainerInterface $container) {}
 
