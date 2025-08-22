@@ -3,8 +3,8 @@
 namespace Formotron\Test\Attributes;
 
 use Attribute;
-use Formotron\Attribute\Assert;
 use Formotron\Attribute\TransformerServiceAttribute;
+use Formotron\Attribute\Validate;
 use Formotron\Test\DataProcessorTestTrait;
 use Formotron\Transformer;
 use Formotron\Validator;
@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
 use stdClass;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class ServiceAttributeWithoutArgs implements TransformerServiceAttribute
+class TransformerServiceAttributeWithoutArgs implements TransformerServiceAttribute
 {
     public function __construct() {}
 
@@ -29,7 +29,7 @@ class ServiceAttributeWithoutArgs implements TransformerServiceAttribute
 }
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class ServiceAttributeWithArgs implements TransformerServiceAttribute
+class TransformerServiceAttributeWithArgs implements TransformerServiceAttribute
 {
     public function __construct(private string $arg1, private string $arg2) {}
 
@@ -63,7 +63,7 @@ class TransformerServiceAttributeTest extends TestCase
 
         $dataObject = new class
         {
-            #[ServiceAttributeWithoutArgs]
+            #[TransformerServiceAttributeWithoutArgs]
             public mixed $foo;
         };
         $result = $this->process(['foo' => 'a'], $dataObject, $services);
@@ -86,7 +86,7 @@ class TransformerServiceAttributeTest extends TestCase
 
         $dataObject = new class
         {
-            #[ServiceAttributeWithArgs('val1', 'val2')]
+            #[TransformerServiceAttributeWithArgs('val1', 'val2')]
             public mixed $foo;
         };
         $result = $this->process(['foo' => 'a'], $dataObject, $services);
@@ -109,7 +109,7 @@ class TransformerServiceAttributeTest extends TestCase
 
         $dataObject = new class
         {
-            #[ServiceAttributeWithArgs(arg2: 'val2', arg1: 'val1')]
+            #[TransformerServiceAttributeWithArgs(arg2: 'val2', arg1: 'val1')]
             public mixed $foo;
         };
         $result = $this->process(['foo' => 'a'], $dataObject, $services);
@@ -121,8 +121,8 @@ class TransformerServiceAttributeTest extends TestCase
     {
         $dataObject = new class
         {
-            #[ServiceAttributeWithoutArgs]
-            #[ServiceAttributeWithArgs('val1', 'val2')]
+            #[TransformerServiceAttributeWithoutArgs]
+            #[TransformerServiceAttributeWithArgs('val1', 'val2')]
             public mixed $foo;
         };
         $this->expectException(LogicException::class);
@@ -137,7 +137,7 @@ class TransformerServiceAttributeTest extends TestCase
 
         $dataObject = new class
         {
-            #[ServiceAttributeWithoutArgs]
+            #[TransformerServiceAttributeWithoutArgs]
             public mixed $foo;
         };
         $this->expectException(LogicException::class);
@@ -156,7 +156,7 @@ class TransformerServiceAttributeTest extends TestCase
         };
 
         $validator = $this->createMock(Validator::class);
-        $validator->expects($this->once())->method('getValidationErrors')->with('b')->willReturn([]);
+        $validator->expects($this->once())->method('validate')->with('b');
 
         $services = [
             ['TransformerService1', $transformer],
@@ -165,8 +165,8 @@ class TransformerServiceAttributeTest extends TestCase
 
         $dataObject = new class
         {
-            #[ServiceAttributeWithoutArgs]
-            #[Assert('TestValidator')]
+            #[TransformerServiceAttributeWithoutArgs]
+            #[Validate('TestValidator')]
             public mixed $foo;
         };
         $this->process(['foo' => 'a'], $dataObject, $services);

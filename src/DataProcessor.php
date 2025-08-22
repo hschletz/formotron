@@ -3,12 +3,13 @@
 namespace Formotron;
 
 use BackedEnum;
-use Formotron\Attribute\Assert;
 use Formotron\Attribute\Key;
 use Formotron\Attribute\PreProcess;
 use Formotron\Attribute\TransformerAttribute;
 use Formotron\Attribute\TransformerServiceAttribute;
 use Formotron\Attribute\UseBackingValue;
+use Formotron\Attribute\ValidatorAttribute;
+use Formotron\Attribute\ValidatorServiceAttribute;
 use LogicException;
 use Psr\Container\ContainerInterface;
 use ReflectionAttribute;
@@ -114,7 +115,7 @@ class DataProcessor
             $key = $keyAttribute ? $keyAttribute->newInstance()->key : $property->getName();
             /** @psalm-suppress MixedAssignment */
             $value = $this->getValue($property, $key, $input);
-            $this->processAssertions($property, $value);
+            $this->processValidators($property, $value);
             $property->setValue($instance, $value);
             $processedKeys[] = $key;
         }
@@ -330,21 +331,32 @@ class DataProcessor
         }
     }
 
-    private function processAssertions(ReflectionProperty $property, mixed $value): void
+    private function processValidators(ReflectionProperty $property, mixed $value): void
     {
-        foreach ($property->getAttributes(Assert::class, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
-            $assertion = $attribute->newInstance();
-            $validator = $this->container->get($assertion->validatorService);
-            if (!$validator instanceof Validator) {
-                throw new LogicException("Service {$assertion->validatorService} does not implement " . Validator::class);
-            }
-            $errors = $validator->getValidationErrors($value, $assertion->args);
-            if ($errors) {
-                throw new AssertionFailedException(sprintf(
-                    'Assertion %s failed on $%s',
-                    $assertion->validatorService,
-                    $property->getName(),
-                ));
+        $attributes = array_merge(
+            $property->getAttributes(ValidatorAttribute::class, ReflectionAttribute::IS_INSTANCEOF),
+            $property->getAttributes(ValidatorServiceAttribute::class, ReflectionAttribute::IS_INSTANCEOF),
+        );
+        foreach ($attributes as $attribute) {
+            /** @var ValidatorAttribute | ValidatorServiceAttribute */
+            $instance = $attribute->newInstance();
+            if ($instance instanceof ValidatorAttribute) {
+                if ($instance instanceof ValidatorServiceAttribute) {
+                    throw new LogicException(sprintf(
+                        'Attribute %s must implement %s or %s, but not both',
+                        get_class($instance),
+                        ValidatorAttribute::class,
+                        ValidatorServiceAttribute::class,
+                    ));
+                }
+                $instance->validate($value);
+            } else {
+                $service = $instance->getServiceName();
+                $validator = $this->container->get($service);
+                if (!$validator instanceof Validator) {
+                    throw new LogicException("Service {$service} does not implement " . Validator::class);
+                }
+                $validator->validate($value, $instance->getArguments());
             }
         }
     }

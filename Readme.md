@@ -342,7 +342,7 @@ When the transformation must be done in a class instantiated from the container
 // The container must resolve UserMapper::class to an instance of this class.
 class UserMapper implements Formotron\Transformer
 {
-    // The Database object will be injected by the container
+    // The Database object will be injected by the container.
     public function __construct(private Database $database) {}
 
     #[Override]
@@ -398,7 +398,7 @@ class MapUser implements Formotron\Attribute\TransformerServiceAttribute
     #[Override]
     public function getArguments(): array
     {
-        // ['role' => $this->role];
+        // ['role' => $this->role]
         return get_object_vars($this);
     }
 }
@@ -427,69 +427,147 @@ constrained to a list of valid values that, unlike enums, is determined
 dynamically at runtime.
 
 Validation rules can become rather complex. Arbitrary rules can be checked by a
-validator. A validator is a class implementing the `Formotron\Validator` interface:
+validator. A validator is an attribute implementing either the
+`Formotron\Attribute\ValidatorAttribute` or the
+`Formotron\Attribute\ValidatorServiceAttribute` interface. The validator
+receives the input value with all transformations already applied, and should
+throw an exception if it does not meet the criteria for valid values.
+
+Exceptions are currently not handled by Formotron (i.e. they bubble up to the
+calling code), and processing will stop at the first exception. Support for full
+validation is planned for the future.
+
+Multiple validators can be attached to a single property, even multiple
+validators of the same type but with different parameters, but the order of
+execution must not be relied upon. If order is significant, write a validator
+that does all necessary checks in a single step.
+
+Unlike similar packages, Formotron does not ship with any validator
+implementations, but only provides the validation framework. Many validators are
+trivial and easy to implement. You can still use an external validation library
+and wrap its functions in a `ValidatorAttribute` or `Validator` object.
+
+## Validators without dependencies
+
+Validators which can be instantiated directly implement the
+`Formotron\Attribute\ValidatorAttribute` interface. Like any other attribute
+class, they can take arguments that are passed to its constructor.
 
 ```php
-interface Validator
+#[Attribute(Attribute::TARGET_PROPERTY | Attribute::IS_REPEATABLE)]
+class StringLength implements Formotron\Attribute\ValidatorAttribute
 {
-    public function getValidationErrors(mixed $value, array $args): array;
-}
-```
-
-Implementations receive the input value with all transformations already
-applied, do all necessary checks and return the result. The return value is a
-list of validation errors. If the input value is valid, an empty array must be
-returned. The input value may fail more than one check, in which case multiple
-errors can be reported simultaneously.
-
-Individual error values can be anything like a simple string, a symbolic error
-code, or an error object holding a message template and message arguments.
-Errors are currently not further evaluated, so a simple debug message may be
-sufficient at the moment. Support for detailed error reporting is planned for
-the future. Until then, a validator may throw a custom exception which supplies
-datailed error information and can be caught and evaluated by the calling code.
-
-Validators are attached to a property via the `Assert` attribute. It takes the
-name of a service – typically a class name – which will be pulled from the
-container supplied to the DataProcessor's constructor. The container must
-resolve the name to an object implementing the `Validator` interface.
-
-Additional arguments to the attribute are passed to the `getValidationErrors()`
-method as the `$args` parameter. See _"Passing extra arguments to attributes"_
-below.
-
-```php
-use Formotron\Attribute\Assert;
-
-// The container must resolve MaxLength::class to an instance of this class.
-class MaxLength implements Formotron\Validator
-{
-    public function getValidationErrors(mixed $value, array $args): array
+    public function __construct(private int $min = 0, private ?int $max = null)
     {
-        if (is_string($value) && mb_strlen($value) <= 100) {
-            return [];
-        } else {
-            return ['Maximum length exceeded'];
+        assert($min >= 0);
+        assert($max === null || ($max >= 1 && $min <= $max));
+    }
+
+    #[Override]
+    public function validate(mixed $value): void
+    {
+        if (!is_string($value)) {
+            throw new InvalidArgumentException('not a string');
+        }
+        $length = mb_strlen($value);
+        if ($length < $this->min) {
+            throw new InvalidArgumentException('too short');
+        }
+        if ($this->max && $length > $this->max) {
+            throw new InvalidArgumentException('too long');
         }
     }
 }
 
 class DataObject
 {
-    #[Assert(MaxLength::class)]
-    public string $foo;
+    #[StringLength(min: 1, max: 30)]
+    public string $name;
 }
 ```
 
-Multiple validators can be attached to a single property, but the order of
-execution should not be relied upon. If order is significant, write a validator
-that does all necessary checks in a single step.
+## Validators instantiated from a container
 
-Unlike similar packages, Formotron does not ship with any validator
-implementations, but only provides the validation framework. Many validators are
-trivial and easy to implement. You can still use an external validation library
-and wrap its functions in a `Validator` object.
+When validation must be done in a class instantiated from the container
+(typically to have dependencies injected), that class must implement the
+`Formotron\Validator` interface.
 
+```php
+// The container must resolve UniqueValidator::class to an instance of this class.
+class UniqueValidator implements Formotron\Validator
+{
+    // The Database object will be injected by the container.
+    public function __construct(private Database $database) {}
+
+    #[Override]
+    public function validate(mixed $value, array $args): void
+    {
+        assert($args['table']);
+        assert($args['column']);
+
+        if (
+            $database->fetchOne(
+                "SELECT count(*) FROM $table WHERE $column = ?",
+                [$value],
+            )
+        ) {
+            throw new InvalidArgumentException('value already exists');
+        }
+    }
+}
+
+```
+
+This service cannot be defined as an attribute, because attributes receive their
+arguments through their constructor, which this class uses for its dependencies.
+A separate attribute class is required which must implement the
+`Formotron\Attribute\ValidatorServiceAttribute` interface. A default
+implementation exists, `Formotron\Attribute\Validate`, which requires the
+service name as its first argument, and has additional arguments passed as the
+second parameter to the service's `validate()` method.
+
+```php
+class DataObject
+{
+    // Name must not exist in users.name
+    #[Formotron\Attribute\Validate(UniqueValidator::class, table: 'users', column: 'name')]
+    public string $name;
+}
+```
+
+When using extra arguments, it is often better to define the attribute manually.
+See _"Passing extra arguments to attributes"_ below.
+
+```php
+#[Attribute(Attribute::TARGET_PROPERTY | Attribute::IS_REPEATABLE)]
+class Unique implements Formotron\Attribute\ValidatorServiceAttribute
+{
+    public function __construct(private string $table, private string $column)
+    {
+        assert($table);
+        assert($column);
+    }
+
+    #[Override]
+    public function getServiceName(): string
+    {
+        return UniqueValidator::class;
+    }
+
+    #[Override]
+    public function getArguments(): array
+    {
+        // ['table' => $this->table, 'column' => $this->column]
+        return get_object_vars($this);
+    }
+}
+
+class DataObject
+{
+    #[Unique(table: 'users', column: 'name')]
+    public string $name;
+}
+```
 
 # Preprocessing input data
 
@@ -576,9 +654,9 @@ class DataObject
 
 # Passing extra arguments to attributes
 
-Extra arguments to the `Transform` and `Assert` attributes are passed to the
-`transform()`/`getValidationErrors()` method, allowing generic implementations
-with parameters.
+Extra arguments to the `Transform` and `Validate` attributes are passed to the
+`transform()`/`validate()` method, allowing generic implementations with
+parameters.
 
 The arguments are not defined in code. Arbitrary names and values may be passed.
 The transformer/validator may have to validate the extra arguments, editors

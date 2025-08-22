@@ -6,23 +6,19 @@ namespace Formotron;
  * Interface for validators.
  *
  * Validators are set on data object properties via the @see
- * Formotron\Attribute\Assert attribute.
+ * Formotron\Attribute\ValidatorServiceAttribute attribute.
  */
 interface Validator
 {
     /**
      * Validate an input value.
      *
-     * The return value is a list of validation errors. Interpretation is up to
-     * the application. Errors can be anything from message strings to symbolic
-     * error codes.
+     * If the input value is invalid, throw an exception.
      *
-     * If the input value is valid, return an empty array.
-     *
-     * $args contains the extra arguments passed to Assert attribute.
+     * $args contains the extra arguments passed to the @see
+     * ValidatorServiceAttribute attribute.
      *
      * @param mixed[] $args
-     * @return mixed[]
      */
-    public function getValidationErrors(mixed $value, array $args): array;
+    public function validate(mixed $value, array $args): void;
 }
