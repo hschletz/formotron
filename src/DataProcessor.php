@@ -4,6 +4,7 @@ namespace Formotron;
 
 use BackedEnum;
 use Formotron\Attribute\Key;
+use Formotron\Attribute\KeyOnly;
 use Formotron\Attribute\PreProcess;
 use Formotron\Attribute\TransformerAttribute;
 use Formotron\Attribute\TransformerServiceAttribute;
@@ -133,7 +134,11 @@ final class DataProcessor
      */
     private function getValue(ReflectionProperty $property, string $key, array $input): mixed
     {
-        if (array_key_exists($key, $input)) {
+        $keyExists = array_key_exists($key, $input);
+        if ($property->getAttributes(KeyOnly::class)) {
+            /** @psalm-suppress MixedAssignment */
+            $value = $this->processValue($property, $key, $keyExists);
+        } elseif ($keyExists) {
             /** @psalm-suppress MixedAssignment */
             $value = $this->processValue($property, $key, $input[$key]);
         } elseif ($property->hasType()) {

@@ -241,6 +241,42 @@ If you need a default of NULL and cannot declare a specific type, declare the
 property as `mixed` which does not suffer from this limitation.
 
 
+# Reporting the presence of a key only
+
+A default value is not always an adequate solution for a missing key. Some data
+structures have fields that convey a boolean-like value, but only include the
+field if it deviates from an implied default. The real information is the
+presence of the key; the actual value is meaningless. HTML checkboxes are a
+well-known example for this pattern.
+
+Providing a default value in the data object would work, but may not be the
+correct choice from a purely logical point of view. Somtimes there is no
+reasonable default, or the actual default may contradict the logical default
+(like a default of `false` for a checkbox that is initially checked).
+
+The `KeyOnly` Attribute is a better way to express the intent in these
+situations. It results in a `bool` value that indicates the presence of the key
+in the input array. The corresponding value is discarded.
+
+```php
+class DataObject
+{
+    #[Formotron\Attribute\KeyOnly]
+    public bool $checked;
+}
+
+$dataProcessor->process([], DataObject::class); // $checked will be FALSE
+$dataProcessor->process(['checked' => ''], DataObject::class); // $checked will be TRUE
+```
+
+If the property has a default value, the `KeyOnly` Attribute takes precedence,
+i.e. the default value is ignored. The default is only relevant if the object is
+instantiated by other means. This is confusing though and should be avoided if
+possible.
+
+If the property should receive other values than `true`/`false`, a transformer
+can be applied (see below).
+
 # Unmappable input fields
 
 Input arrays with fields that cannot be mapped to a property in the data object
@@ -840,57 +876,27 @@ Interpretation is up to the application. There are no client-side constraints.
 ## Checkboxes
 
 `<input type="checkbox">` produces a string with the element's `value` attribute
-if the checkbox is checked. The field will be missing completely otherwise.
-Generating a single checked/unchecked value is more complex than for other
-element types.
+(or a default value of `on`) if the checkbox is checked. The field will be
+missing completely otherwise.
 
-Some applications and frameworks deal with this problem by adding a hidden
-element to the form with the same name as the checkbox element and the unchecked
-value, so that the key will always be present. This moves the logic to the form
-markup, which is not the best place for this implementation detail.
-
-Formotron can handle checkbox data (and the lack thereof) without this hack. To
-handle the missing key, the unchecked value must be set as default on the
-property. A transformer must handle the checked value.
+The easiest way to handle this information is a `KeyOnly` attribute on the
+property.
 
 ```php
-use Formotron\Attribute\Transform;
-
-class Exists implements Formotron\Transformer
-{
-    public function transform(mixed $value, array $args): mixed
-    {
-        // This is only encountered if the checkbox is checked, so we can ignore
-        // the actual value unless this transformer may be used in a different
-        // context.
-        return true;
-    }
-}
-
 class DataObject
 {
-    #[Transform(Exists::class)]
-    public bool $foo = false; // Default to unchecked value to allow missing key
+    #[Formotron\Attribute\KeyOnly]
+    public bool $checked;
 }
 ```
 
-Checkboxes are often mapped to `true`/`false`, but any other pair of values can
-be used the same way. When using a string, the transformer may not be necessary,
-but the checked value must be validated. Alternatively, an enum with 2 values
-can be used without transformers and validators:
+Some applications and frameworks deal with checkboxes by adding a hidden element
+to the form with the same name as the checkbox element and the unchecked value,
+so that the key will always be present. This moves the logic to the form markup,
+which is not the best place for this implementation detail and should be avoided
+if possible. If you must use this pattern, validate and apply the input value
+directly or transform it into a boolean or any other value.
 
-```php
-enum Checkbox
-{
-    case Checked; // The checkbox element must set its value attribute to "Checked"
-    case Unchecked;
-}
-
-class DataObject
-{
-    public Checkbox $foo = Checkbox::Unchecked;
-}
-```
 
 ## Radio buttons
 `<input type="radio">` produces a string with the value of the selected element,
