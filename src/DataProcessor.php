@@ -338,6 +338,15 @@ final class DataProcessor
 
     private function processValidators(ReflectionProperty $property, mixed $value): void
     {
+        if ($value === null) {
+            // Unless the property is mixed or untyped, skip validators and
+            // depend on the property's nullability.
+            $type = $property->getType();
+            if ($type instanceof ReflectionNamedType && $type->getName() != 'mixed') {
+                return;
+            }
+        }
+
         $attributes = array_merge(
             $property->getAttributes(ValidatorAttribute::class, ReflectionAttribute::IS_INSTANCEOF),
             $property->getAttributes(ValidatorServiceAttribute::class, ReflectionAttribute::IS_INSTANCEOF),

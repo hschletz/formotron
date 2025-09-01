@@ -483,6 +483,29 @@ implementations, but only provides the validation framework. Many validators are
 trivial and easy to implement. You can still use an external validation library
 and wrap its functions in a `ValidatorAttribute` or `Validator` object.
 
+## Validation of `null` values
+
+Most validators work on specific types only. For example, a string length check
+requires string input. Because, in many cases, the input value passed to
+validators can be anything, validators may have to check the value's type before
+proceeding.
+
+This can become problematic if the input value is `null`. Validity depends on
+the property's type, but this information is not available to validators. For
+this reason, the property type determines how `null` values get validated:
+
+- For non-nullable types, (like `string`), `null` is invalid by definition, and
+  an error is thrown. Validators are not invoked in that case. Attached
+  validators will never receive a `null` value.
+
+- For nullable types, (like `?string`), `null` is valid by definition.
+  Validators are not invoked in that case. Attached validators will never
+  receive a `null` value.
+
+- For untyped or `mixed` properties, `null` is valid by default, but validators
+  will get invoked. Attached validators may receive a `null` value and have to
+  decide whether or not it is valid.
+
 ## Validators without dependencies
 
 Validators which can be instantiated directly implement the

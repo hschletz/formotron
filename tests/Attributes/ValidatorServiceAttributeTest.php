@@ -4,6 +4,7 @@ namespace Formotron\Test\Attributes;
 
 use Attribute;
 use Exception;
+use Formotron\AssertionFailedException;
 use Formotron\Attribute\ValidatorServiceAttribute;
 use Formotron\Test\DataProcessorTestTrait;
 use Formotron\Validator;
@@ -130,5 +131,75 @@ class ValidatorServiceAttributeTest extends TestCase
         $this->expectExceptionMessage('Service ValidatorService1 does not implement ' . Validator::class);
 
         $this->process(['foo' => 'bar'], $dataObject, $services);
+    }
+
+    public function testNullBypassesValidationForNullableProperty()
+    {
+        $validator = $this->createMock(Validator::class);
+        $validator->expects($this->never())->method('validate');
+
+        $services = [['ValidatorService1', $validator]];
+
+        $dataObject = new class
+        {
+            #[ValidatorServiceAttributeWithoutArgs]
+            public ?string $foo;
+        };
+
+        $this->process(['foo' => null], $dataObject, $services);
+    }
+
+    public function testNullBypassesValidationForNonNullableProperty()
+    {
+        $validator = $this->createMock(Validator::class);
+        $validator->expects($this->never())->method('validate');
+
+        $services = [['ValidatorService1', $validator]];
+
+        $dataObject = new class
+        {
+            #[ValidatorServiceAttributeWithoutArgs]
+            public string $foo;
+        };
+
+        // process() will throw an exception. Ignore it, to be able to inspect
+        // mock constraint.
+        try {
+            $this->process(['foo' => null], $dataObject, $services);
+            $this->fail('Expected exception was not thrown');
+        } catch (AssertionFailedException) {
+        }
+    }
+
+    public function testNullGetsValidatedForMixedProperty()
+    {
+        $validator = $this->createMock(Validator::class);
+        $validator->expects($this->once())->method('validate')->with(null, []);
+
+        $services = [['ValidatorService1', $validator]];
+
+        $dataObject = new class
+        {
+            #[ValidatorServiceAttributeWithoutArgs]
+            public mixed $foo;
+        };
+
+        $this->process(['foo' => null], $dataObject, $services);
+    }
+
+    public function testNullGetsValidatedForUntypedProperty()
+    {
+        $validator = $this->createMock(Validator::class);
+        $validator->expects($this->once())->method('validate')->with(null, []);
+
+        $services = [['ValidatorService1', $validator]];
+
+        $dataObject = new class
+        {
+            #[ValidatorServiceAttributeWithoutArgs]
+            public $foo; // @phpstan-ignore missingType.property (type is intentionally omitted)
+        };
+
+        $this->process(['foo' => null], $dataObject, $services);
     }
 }

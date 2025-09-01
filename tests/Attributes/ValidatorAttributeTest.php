@@ -4,6 +4,7 @@ namespace Formotron\Test\Attributes;
 
 use Attribute;
 use Exception;
+use Formotron\AssertionFailedException;
 use Formotron\Attribute\Validate;
 use Formotron\Attribute\ValidatorAttribute;
 use Formotron\Test\DataProcessorTestTrait;
@@ -168,6 +169,74 @@ class ValidatorAttributeTest extends TestCase
                 ],
             ],
             static::$validatedValues,
+        );
+    }
+
+    public function testNullBypassesValidationForNullableProperty()
+    {
+        $dataObject = new class
+        {
+            #[SimpleValidatorAttributeWithoutArgs]
+            public ?string $foo;
+        };
+
+        $this->process(['foo' => null], $dataObject);
+        $this->assertEmpty(static::$validatedValues);
+    }
+
+    public function testNullBypassesValidationForNonNullableProperty()
+    {
+        $dataObject = new class
+        {
+            #[SimpleValidatorAttributeWithoutArgs]
+            public string $foo;
+        };
+
+        // process() will throw an exception. Ignore it, to be able to inspect
+        // validation results.
+        try {
+            $this->process(['foo' => null], $dataObject);
+            $this->fail('Expected exception was not thrown');
+        } catch (AssertionFailedException) {
+        }
+        $this->assertEmpty(static::$validatedValues);
+    }
+
+    public function testNullGetsValidatedForMixedProperty()
+    {
+        $dataObject = new class
+        {
+            #[SimpleValidatorAttributeWithoutArgs]
+            public mixed $foo;
+        };
+
+        $this->process(['foo' => null], $dataObject);
+        $this->assertEquals(
+            [
+                '' => [
+                    [],
+                ],
+            ],
+            static::$validatedValues
+        );
+    }
+
+    public function testNullGetsValidatedForUntypedProperty()
+    {
+        $dataObject = new class
+        {
+            #[SimpleValidatorAttributeWithoutArgs]
+            public $foo; // @phpstan-ignore missingType.property (type is intentionally omitted)
+        };
+
+        $this->process(['foo' => null], $dataObject);
+        $this->assertEquals(
+            [
+                '' => [
+                    [],
+                ],
+            ],
+            static::$validatedValues
         );
     }
 }
