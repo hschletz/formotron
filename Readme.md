@@ -308,6 +308,59 @@ In this example, `$foo` will receive its value from the `bar` field. `foo` is
 now an invalid key, unless mapped to a different property. This may become
 confusing though, and is not recommended.
 
+Sometimes the name mapping can be done programatically. For example, database
+records typically use _snake_case_ identifiers, but data object properties often
+follow the _camelCase_ convention. Applying a `Key` attribute on every property
+would be tedious and repetitive. Programmatic mapping can be done in a class
+that implements the `Formotron\KeyMapper` interface:
+
+```php
+interface KeyMappper
+{
+    public function getKey(string $property): string;
+}
+```
+
+Implementations receive a property name and return the corresponding key to be
+looked up in the input array. Key mappers are attached to the data object class
+via the `Formotron\Attribute\MapKeys` attribute. It takes the name of a service
+– typically a class name – which will be pulled from the container supplied to
+the DataProcessor's constructor. The container must resolve the name to an
+object implementing the `KeyMapper` interface.
+
+If a `Key` attribute is set on a property, it takes precedence, and the key
+mapper is not invoked for that property.
+
+```php
+// The container must resolve CamelCaseToSnakeCase::class to an instance of this class.
+class CamelCaseToSnakeCase implements Formotron\KeyMapper
+{
+    public function getKey(string $property): string
+    {
+        return strtolower(preg_replace('/[A-Z]/', '_$0', $property));
+    }
+}
+
+#[\Formotron\Attribute\MapKeys(CamelCaseToSnakeCase::class)]
+class DataObject
+{
+    // Mapped by key mapper
+    public string $fooBar;
+
+    // Mapped by Key attribute
+    #[\Formotron\Attribute\Key('other key')]
+    public string $baz;
+}
+
+$dataObject = $dataProcessor->process(
+    [
+        'foo_bar' => '',
+        'other key' => '',
+    ],
+    DataObject::class
+);
+```
+
 
 # Ignoring properties
 

@@ -6,6 +6,7 @@ use BackedEnum;
 use Formotron\Attribute\Ignore;
 use Formotron\Attribute\Key;
 use Formotron\Attribute\KeyOnly;
+use Formotron\Attribute\MapKeys;
 use Formotron\Attribute\PreProcess;
 use Formotron\Attribute\TransformerAttribute;
 use Formotron\Attribute\TransformerServiceAttribute;
@@ -110,6 +111,17 @@ final class DataProcessor
      */
     private function createObject(array $input, ReflectionClass $class): object
     {
+        $mapKeysAttribute = $class->getAttributes(MapKeys::class)[0] ?? null;
+        if ($mapKeysAttribute) {
+            $keyMapperService = $mapKeysAttribute->newInstance()->keyMapperService;
+            $keyMapper = $this->container->get($keyMapperService);
+            if (! $keyMapper instanceof KeyMapper) {
+                throw new LogicException("Service {$keyMapperService} does not implement " . KeyMapper::class);
+            }
+        } else {
+            $keyMapper = null;
+        }
+
         $instance = $class->newInstanceWithoutConstructor();
         $processedKeys = [];
         foreach ($class->getProperties() as $property) {
@@ -118,7 +130,14 @@ final class DataProcessor
             }
 
             $keyAttribute = $property->getAttributes(Key::class)[0] ?? null;
-            $key = $keyAttribute ? $keyAttribute->newInstance()->key : $property->getName();
+            if ($keyAttribute) {
+                $key = $keyAttribute->newInstance()->key;
+            } elseif ($keyMapper) {
+                $key = $keyMapper->getKey($property->getName());
+            } else {
+                $key = $property->getName();
+            }
+
             /** @psalm-suppress MixedAssignment */
             $value = $this->getValue($property, $key, $input);
             $this->processValidators($property, $value);
