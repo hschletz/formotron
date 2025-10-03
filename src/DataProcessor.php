@@ -3,6 +3,7 @@
 namespace Formotron;
 
 use BackedEnum;
+use Formotron\Attribute\Ignore;
 use Formotron\Attribute\Key;
 use Formotron\Attribute\KeyOnly;
 use Formotron\Attribute\PreProcess;
@@ -112,6 +113,10 @@ final class DataProcessor
         $instance = $class->newInstanceWithoutConstructor();
         $processedKeys = [];
         foreach ($class->getProperties() as $property) {
+            if ($property->getAttributes(Ignore::class)) {
+                continue;
+            }
+
             $keyAttribute = $property->getAttributes(Key::class)[0] ?? null;
             $key = $keyAttribute ? $keyAttribute->newInstance()->key : $property->getName();
             /** @psalm-suppress MixedAssignment */

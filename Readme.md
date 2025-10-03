@@ -309,6 +309,33 @@ now an invalid key, unless mapped to a different property. This may become
 confusing though, and is not recommended.
 
 
+# Ignoring properties
+
+The data object class may have properties that are only used by class methods,
+but not meant to be populated by Formotron. The `Formotron\Attribute\Ignore`
+attribute can be set on these properties:
+
+```php
+class DataObject
+{
+    public string $foo;
+
+    #[\Formotron\Attribute\Ignore]
+    public string $bar;
+}
+
+// This will succeed, with $bar left uninitialized (or initialized with its
+// default value)
+$dataObject = $dataProcessor->process(['foo' => 'baz'], DataObject::class);
+```
+
+Formotron will behave as if the property did not exist. It will be silently
+skipped, and the corresponding key must not be present in the input array.
+
+Do not combine this attribute with any other Formotron attributes. The behavior
+will be undefined.
+
+
 # Transforming values
 
 Values from the input array may not be suitable for in-application
