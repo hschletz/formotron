@@ -791,6 +791,57 @@ class DataObject
 ```
 
 
+# Postprocessing the data object
+
+Preprocessors operate on raw input data, which is often inconvenient and error
+prone. If operations can be postponed until the data object has been fully
+populated, a postprocessor can be attached to a class via a
+`Formotron\Attribute\PostProcess` attribute. It takes the name of a service –
+typically a class name – which will be pulled from the container supplied to the
+DataProcessor's constructor. The container must resolve the name to an object
+implementing the `Formotron\PostProcessor` interface.
+
+Multiple postprocessors can be attached to a single class, but the order of
+execution should not be relied upon. If order is significant, write a
+postprocessor that does all necessary operations in a single step.
+
+The postprocessor receives the populated data object with all transformers and
+validators already applied, allowing some assumptions about the structure and
+content of the data object.
+
+```php
+class RangeValidator implements Formotron\PostProcessor
+{
+    #[Override]
+    public function process(object $dataObject): void
+    {
+        assert($dataObject instanceof Range);
+        if ($dataObject->min > $dataObject->max) {
+            throw new InvalidArgumentException('min must be less than or equal to max');
+        }
+    }
+}
+
+#[Formotron\Attribute\PostProcess(RangeValidator::class)]
+class Range
+{
+    public int $min;
+    public int $max;
+}
+```
+
+'process()' may also modify the data object. No further validation occurs after
+postprocessing. The postprocessor is responsible for validity of the modified
+data.
+
+Postprocessors typically expect to operate on objects of a specific class.
+Formotron does not enforce a specific relationship between the postprocessor and
+the data object. The postprocessor should not assume correct usage and is
+responsible for inspection of the data object. The assertion in the example
+above not only guarantees a valid data object class, but also gives a hint about
+the object type, improving static code analysis and ennabling autocompletion.
+
+
 # Passing extra arguments to attributes
 
 Extra arguments to the `Transform` and `Validate` attributes are passed to the

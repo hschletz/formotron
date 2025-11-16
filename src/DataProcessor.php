@@ -7,6 +7,7 @@ use Formotron\Attribute\Ignore;
 use Formotron\Attribute\Key;
 use Formotron\Attribute\KeyOnly;
 use Formotron\Attribute\MapKeys;
+use Formotron\Attribute\PostProcess;
 use Formotron\Attribute\PreProcess;
 use Formotron\Attribute\TransformerAttribute;
 use Formotron\Attribute\TransformerServiceAttribute;
@@ -65,6 +66,7 @@ final class DataProcessor
         $class = new ReflectionClass($className);
         $input = $this->preProcess($input, $class);
         $object = $this->createObject($input, $class);
+        $this->postProcess($object, $class);
 
         return $object;
     }
@@ -101,6 +103,24 @@ final class DataProcessor
         }
 
         return $input;
+    }
+
+    /**
+     * @template T of object
+     * @param T $dataObject
+     * @param ReflectionClass<T> $class
+     */
+    private function postProcess(object $dataObject, ReflectionClass $class): void
+    {
+        foreach ($class->getAttributes(PostProcess::class) as $attribute) {
+            $service = $attribute->newInstance()->postProcessorService;
+            $postProcessor = $this->container->get($service);
+            if (!$postProcessor instanceof PostProcessor) {
+                throw new LogicException("Service {$service} does not implement " . PostProcessor::class);
+            }
+
+            $postProcessor->process($dataObject);
+        }
     }
 
     /**
