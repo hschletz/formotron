@@ -20,7 +20,7 @@ class SimpleValidatorAttributeWithoutArgs implements ValidatorAttribute
     public function validate(mixed $value): void
     {
         assert($value === null || is_string($value));
-        ValidatorAttributeTest::$validatedValues[$value][] = [];
+        ValidatorAttributeTest::$validatedValues[$value ?? ''][] = [];
     }
 }
 
@@ -32,7 +32,7 @@ class SimpleValidatorAttributeWithArgs implements ValidatorAttribute
     public function validate(mixed $value): void
     {
         assert($value === null || is_string($value));
-        ValidatorAttributeTest::$validatedValues[$value][] = [$this->arg1, $this->arg2];
+        ValidatorAttributeTest::$validatedValues[$value ?? ''][] = [$this->arg1, $this->arg2];
     }
 }
 

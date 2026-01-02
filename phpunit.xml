@@ -5,6 +5,8 @@
     cacheDirectory=".phpunit.cache"
     beStrictAboutCoverageMetadata="true"
     displayDetailsOnTestsThatTriggerWarnings="true"
+    failOnDeprecation="true"
+    displayDetailsOnTestsThatTriggerDeprecations="true"
 >
   <extensions>
 	<bootstrap class="DG\BypassFinals\PHPUnitExtension"/>
