@@ -40,8 +40,8 @@ composer require hschletz/formotron
 
 Formotron requires an adequately configured
 [PSR-11](https://www.php-fig.org/psr/psr-11/) compatible container to
-instantiate transformers, validators and preprocessors. The concrete
-implementation does not matter as long as it implements
+instantiate transformers, validators, key mappers, pre- and postprocessors. The
+concrete implementation does not matter as long as it implements
 `Psr\Container\ContainerInterface`. If your application already uses a
 container, you can use just that.
 
