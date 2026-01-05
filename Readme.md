@@ -79,7 +79,8 @@ class MyClass
 The `DataProcessor` class has a public method `process()` which receives the
 input data array and the name of a data object class. It returns a fully
 populated instance of that class or throws a
-`Formotron\AssertionFailedException` if input data is invalid.
+`Formotron\AssertionFailedException` if input data is invalid, or any other
+exception encountered during processing.
 
 ```php
 $dataObject = $dataProcessor->process($_POST, FormData::class);
@@ -708,6 +709,67 @@ class DataObject
 }
 ```
 
+## Collecting validation failures for all properties
+
+Formotron does not handle most exceptions. Processing will abort immediately and
+the exception bubbles up to the calling code.
+
+This may be inconvenient in some scenarios. For example, a form should report
+messages for all invalid fields at once, allowing the user to fix all input in
+one go, instead of stopping at the first invalid field and forcing the user to
+resubmit multiple times. To display the message near the corresponding input
+field, the code needs a programmatic way to determine the field to which the
+message belongs, an information which is not available from the exception.
+
+Validators can throw a `Formotron\ValidationError` which will be caught by the
+data processor. Validation will stop for the current property, but remaining
+properties will be processed (possibliy generating more errors). Finally, a
+`Formotron\ValidationFailedException` will be thrown which can be caught by
+calling code and gives access to all properties that failed validation, along
+with corresponding details.
+
+The `ValidationError` constructor argument can be anything: typically a string
+describing the problem (optionally translated by the application's I18n
+framework), an array of messages, an error object... Interpretation is left to
+the calling code. The `ValidationFailedException` has a public `$errors`
+property which will contain an array with the property names as key and the
+reported details as value.
+
+```php
+#[Attribute(Attribute::TARGET_PROPERTY)]
+class Validate implements Formotron\Attribute\ValidatorAttribute
+{
+    #[Override]
+    public function validate(mixed $value): void
+    {
+        if (!is_int($value)) {
+            throw new Formotron\ValidationError('not an int');
+        }
+        if ($value > 10) {
+            throw new Formotron\ValidationError('too big');
+        }
+    }
+}
+
+class DataObject
+{
+    #[Validate]
+    public int $prop1;
+
+    #[Validate]
+    public int $prop2;
+
+    #[Validate]
+    public int $prop3;
+}
+
+try {
+    $dataObject = $dataProcessor->process(['prop1' => 'abc', 'prop2' => 5, 'prop3' => 42], DataObject::class);
+} catch (Formotron\ValidationFailedException $exception) {
+    var_dump($exception->errors); // ['prop1' => 'not an int', 'property3' => 'too big']
+}
+```
+
 # Preprocessing input data
 
 Transformers and validators operate on individual data object properties and
@@ -877,12 +939,7 @@ Most errors reported by Formotron are failed sanity checks where input data is
 formally incorrect: a value has an unsuitable data type or does not map to an
 enum. This typically means that something went seriously wrong: A bug in the
 backend, or malformed input data that could not have originated from the
-expected form.
-
-These errors are reported via a `Formotron\AssertionFailedException`.
-Transformers, validators and preprocessors can also throw this exception for
-hard errors. In fact, Formotron does not catch any exceptions, so it's possible
-to throw anything that is appropriate.
+expected form. These errors are reported via an exception.
 
 End-users are not expected to see these errors as a response to incorrect user
 action, like leaving a required field empty. In most cases, no special handling
@@ -900,44 +957,8 @@ long or too short.
 
 Throwing an exception without special handling would be inappropriate for this
 kind of error. Invalid user input is typically handled by collecting errors and
-re-displaying the form with error messages.
-
-Formotron does not yet support advanced error handling, but you can implement
-your own. You could throw a custom exception in a transformer, validator or
-preprocessor, and catch it:
-
-```php
-try {
-    $formData = $dataProcessor->process($input, DataObject::class);
-} catch (MyCustomException $exception) {
-    // Handle invalid user input
-}
-```
-
-This has the disadvantage of aborting on the first error. Additional errors
-would stay unnoticed until the form is re-submitted with valid data for the
-first field. As an alternative, instead of throwing an exception, you could
-collect errors somewhere and continue, and evaluate the errors afterwards.
-However, this breaks the promise of an always valid data object, and there is
-now a contract to follow. This can be avoided by wrapping this kind of error
-handling in a reusable method:
-
-```php
-function process(array $input, string $className)
-{
-    $dataObject = $this->dataProcessor->process($input, $className);
-    $errors = $this->getErrors(); // retrieve collected errors
-    if ($errors) {
-        // Report detailed errors to calling code
-        throw new ValidationException($errors);
-    }
-    return $dataObject;
-}
-```
-
-This wrapper returns a valid data object or throws an exception for invalid
-input. Calling code can catch the special exception and evaluate the detailed
-error information contained wihin.
+re-displaying the form with error messages. See "Collecting validation failures
+for all properties" above.
 
 ## Taking advantage of frontend form validation
 

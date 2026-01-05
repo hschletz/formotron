@@ -7,3 +7,4 @@ parameters:
         -
             identifier: missingType.return
             path: tests/*
+    treatPhpDocTypesAsCertain: false

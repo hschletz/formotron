@@ -144,6 +144,7 @@ final class DataProcessor
 
         $instance = $class->newInstanceWithoutConstructor();
         $processedKeys = [];
+        $errors = [];
         foreach ($class->getProperties() as $property) {
             if ($property->getAttributes(Ignore::class)) {
                 continue;
@@ -160,7 +161,17 @@ final class DataProcessor
 
             /** @psalm-suppress MixedAssignment */
             $value = $this->getValue($property, $key, $input);
-            $this->processValidators($property, $value);
+
+            try {
+                $this->processValidators($property, $value);
+            } catch (ValidationError $error) {
+                // Collect details from this special exception class and proceed
+                // with next property. Errors will be reported in bulk. All
+                // other throwables will immediately abort processing and bubble
+                // up to calling code.
+                $errors[$property->getName()] = $error->details;
+            }
+
             $property->setValue($instance, $value);
             $processedKeys[] = $key;
         }
@@ -168,6 +179,9 @@ final class DataProcessor
         $extraKeys = array_diff(array_keys($input), $processedKeys);
         if ($extraKeys) {
             throw new AssertionFailedException('Input data contains extra keys: ' . implode(', ', $extraKeys));
+        }
+        if ($errors) {
+            throw new ValidationFailedException($errors);
         }
 
         return $instance;
