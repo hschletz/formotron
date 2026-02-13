@@ -169,6 +169,7 @@ final class DataProcessor
                 // with next property. Errors will be reported in bulk. All
                 // other throwables will immediately abort processing and bubble
                 // up to calling code.
+                /** @psalm-suppress MixedAssignment */
                 $errors[$property->getName()] = $error->details;
             }
 
